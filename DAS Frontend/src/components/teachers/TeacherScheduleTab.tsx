@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
     Dialog,
     DialogContent,
@@ -77,6 +78,8 @@ export const TeacherScheduleTab: React.FC<TeacherScheduleTabProps> = ({ teacher,
     const [loadingSchedule, setLoadingSchedule] = useState(false);
     const [activeTab, setActiveTab] = useState<'classes' | 'students'>('classes');
     const [freeTimeSlots, setFreeTimeSlots] = useState<FreeTimeSlot[]>([]);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [assignmentToDelete, setAssignmentToDelete] = useState<number | null>(null);
     const [availableSections, setAvailableSections] = useState<string[]>([]);
     const [occupiedSlots, setOccupiedSlots] = useState<any[]>([]);
     const [showAddDialog, setShowAddDialog] = useState(false);
@@ -288,12 +291,17 @@ export const TeacherScheduleTab: React.FC<TeacherScheduleTabProps> = ({ teacher,
         }
     };
 
-    const handleDeleteAssignment = async (assignmentId: number) => {
-        if (!confirm('هل أنت متأكد من حذف هذا التوزيع؟')) return;
+    const handleDeleteAssignment = (assignmentId: number) => {
+        setAssignmentToDelete(assignmentId);
+        setDeleteConfirmOpen(true);
+    };
+
+    const confirmDeleteAssignment = async () => {
+        if (assignmentToDelete === null) return;
 
         setLoading(true);
         try {
-            const response = await teachersApi.removeAssignment(assignmentId);
+            const response = await teachersApi.removeAssignment(assignmentToDelete);
             if (response.success) {
                 toast({
                     title: "نجاح",
@@ -308,6 +316,11 @@ export const TeacherScheduleTab: React.FC<TeacherScheduleTabProps> = ({ teacher,
                 variant: "destructive"
             });
         } finally {
+            setLoading(false);
+            setDeleteConfirmOpen(false);
+            setAssignmentToDelete(null);
+        }
+    };
             setLoading(false);
         }
     };
@@ -741,6 +754,18 @@ export const TeacherScheduleTab: React.FC<TeacherScheduleTabProps> = ({ teacher,
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
+
+            {/* Delete Assignment Confirmation Dialog */}
+            <ConfirmationDialog
+                open={deleteConfirmOpen}
+                onOpenChange={setDeleteConfirmOpen}
+                title="حذف التوزيع"
+                description="هل أنت متأكد من حذف هذا التوزيع؟"
+                confirmText="حذف"
+                cancelText="إلغاء"
+                variant="destructive"
+                onConfirm={confirmDeleteAssignment}
+            />
         </div>
     );
 };

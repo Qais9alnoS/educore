@@ -11,31 +11,46 @@ type PeriodType = 'weekly' | 'monthly' | 'yearly';
 interface FinanceAnalyticsDashboardProps {
   compact?: boolean;
   hideHeader?: boolean;
+  academicYearId?: number; // Optional prop to pass academic year from parent
 }
 
 const FinanceAnalyticsDashboard: React.FC<FinanceAnalyticsDashboardProps> = ({
   compact = false,
-  hideHeader = false
+  hideHeader = false,
+  academicYearId: propAcademicYearId
 }) => {
   const [period, setPeriod] = useState<PeriodType>('monthly');
   const [loading, setLoading] = useState(true);
   const [dashboard, setDashboard] = useState<FinanceManagerDashboard | null>(null);
-  const [academicYear, setAcademicYear] = useState<number>(1);
+  const [academicYear, setAcademicYear] = useState<number | null>(null);
   const [chartData, setChartData] = useState<{categories: string[], incomeData: number[], expenseData: number[]}>({categories: [], incomeData: [], expenseData: []});
   const [incomeCompletion, setIncomeCompletion] = useState<{completed_income: number, incomplete_income: number}>({completed_income: 0, incomplete_income: 0});
 
-  // Load selected academic year from localStorage on mount
+  // Load selected academic year from prop or localStorage on mount
   useEffect(() => {
-    const storedYearId = localStorage.getItem('selected_academic_year_id');
-    if (storedYearId) {
-      const yearId = parseInt(storedYearId);
-      setAcademicYear(yearId);
+    if (propAcademicYearId) {
+      // If passed as prop, use it (this ensures sync with parent DashboardPage)
+      setAcademicYear(propAcademicYearId);
+    } else {
+      // Otherwise read from localStorage
+      const storedYearId = localStorage.getItem('selected_academic_year_id');
+      if (storedYearId) {
+        const yearId = parseInt(storedYearId);
+        setAcademicYear(yearId);
+      }
     }
-  }, []);
+  }, [propAcademicYearId]);
 
-  // Listen for changes in academic year selection
+  // Listen for changes in academic year selection within the app
+  // We rely on the custom `academicYearChanged` event dispatched in AcademicYearManagementPage/App
+  // Only listen if not receiving prop (to avoid conflicts)
   useEffect(() => {
-    const handleStorageChange = () => {
+    if (propAcademicYearId) {
+      // If using prop, don't listen to events (prop will update)
+      return;
+    }
+
+    const handleAcademicYearChanged = () => {
       const storedYearId = localStorage.getItem('selected_academic_year_id');
       if (storedYearId) {
         const yearId = parseInt(storedYearId);
@@ -43,9 +58,11 @@ const FinanceAnalyticsDashboard: React.FC<FinanceAnalyticsDashboardProps> = ({
       }
     };
 
-    window.addEventListener('storage', handleStorageChange);
-    return () => window.removeEventListener('storage', handleStorageChange);
-  }, []);
+    window.addEventListener('academicYearChanged', handleAcademicYearChanged);
+    return () => {
+      window.removeEventListener('academicYearChanged', handleAcademicYearChanged);
+    };
+  }, [propAcademicYearId]);
 
   useEffect(() => {
     if (academicYear) {
@@ -74,14 +91,21 @@ const FinanceAnalyticsDashboard: React.FC<FinanceAnalyticsDashboardProps> = ({
 
   const fetchChartData = async () => {
     try {
-      const response = await financeManagerApi.getTransactionsByPeriod(academicYear, period);
+      // For weekly/monthly, restrict to the currently selected academic year.
+      // For yearly ("سنوات"), fetch data across all academic years.
+      const academicYearForRequest = period === 'yearly' ? null : academicYear;
+      console.log('[FinanceAnalytics] Fetching chart data:', { period, academicYear, academicYearForRequest });
+      
+      const response = await financeManagerApi.getTransactionsByPeriod(academicYearForRequest, period);
+      console.log('[FinanceAnalytics] Chart data response:', response.data);
+      
       setChartData({
-        categories: response.data.periods,
-        incomeData: response.data.income_data,
-        expenseData: response.data.expense_data
+        categories: response.data.periods || [],
+        incomeData: response.data.income_data || [],
+        expenseData: response.data.expense_data || []
       });
     } catch (error) {
-
+      console.error('[FinanceAnalytics] Error fetching chart data:', error);
       setChartData({categories: [], incomeData: [], expenseData: []});
     }
   };

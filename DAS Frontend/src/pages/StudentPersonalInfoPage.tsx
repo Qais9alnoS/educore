@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { DatePicker } from '@/components/ui/date-picker';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { IOSSwitch } from '@/components/ui/ios-switch';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { api } from '@/services/api';
 import type { Student, Class, AcademicYear } from '@/types/school';
 import { toast } from '@/hooks/use-toast';
@@ -31,6 +32,8 @@ const StudentPersonalInfoPage = () => {
   const [classesLoading, setClassesLoading] = useState(false);
   const [classesError, setClassesError] = useState<string | null>(null);
   const [pendingStudentId, setPendingStudentId] = useState<number | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [studentToDelete, setStudentToDelete] = useState<number | null>(null);
   const processedPreselectionRef = React.useRef(false);
   const classSelectionProcessedRef = React.useRef(false);
 
@@ -370,10 +373,15 @@ const StudentPersonalInfoPage = () => {
   };
 
   const handleDelete = async (studentId: number) => {
-    if (!confirm('هل أنت متأكد من حذف هذا الطالب؟')) return;
+    setStudentToDelete(studentId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteStudent = async () => {
+    if (studentToDelete === null) return;
 
     try {
-      await api.students.deactivate(studentId);
+      await api.students.deactivate(studentToDelete);
       toast({
         title: 'نجح',
         description: 'تم حذف الطالب بنجاح',
@@ -383,6 +391,13 @@ const StudentPersonalInfoPage = () => {
       toast({
         title: 'خطأ',
         description: 'فشل في حذف الطالب',
+        variant: 'destructive'
+      });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setStudentToDelete(null);
+    }
+  };
         variant: 'destructive',
       });
     }
@@ -987,6 +1002,18 @@ const StudentPersonalInfoPage = () => {
           </Card>
         )}
       </div>
+
+      {/* Delete Student Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="حذف الطالب"
+        description="هل أنت متأكد من حذف هذا الطالب؟"
+        confirmText="حذف"
+        cancelText="إلغاء"
+        variant="destructive"
+        onConfirm={confirmDeleteStudent}
+      />
     </div>
   );
 };

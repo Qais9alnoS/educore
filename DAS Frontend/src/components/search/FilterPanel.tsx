@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { X, Calendar, Filter as FilterIcon } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { SearchFilters, SearchScope } from '@/types/search';
 import { useAuth } from '@/contexts/AuthContext';
@@ -124,45 +124,23 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop - starts below titlebar */}
       <div
-        className={`fixed inset-0 bg-black/30 dark:bg-black/50 z-[60] transition-opacity duration-200 ${
+        className={`fixed inset-0 top-12 bg-black/30 dark:bg-black/50 z-[60] transition-opacity duration-200 ${
           isClosing ? 'opacity-0' : 'opacity-100'
         }`}
         onClick={handleClose}
       />
 
-      {/* Filter Panel */}
+      {/* Filter Panel - positioned below titlebar */}
       <div
-        className={`fixed left-0 top-0 bottom-0 w-80 bg-[hsl(var(--background))] border-r border-[hsl(var(--border))] shadow-[var(--shadow-elevation-3)] z-[70] transition-transform duration-200 ease-out ${
+        className={`fixed left-0 top-12 bottom-0 w-80 bg-[hsl(var(--background))] border-r border-[hsl(var(--border))] shadow-[var(--shadow-elevation-3)] z-[70] transition-transform duration-200 ease-out ${
           isClosing ? '-translate-x-full' : 'translate-x-0'
         }`}
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex flex-col h-full">
-          {/* Header */}
-          <div className="flex items-center justify-between p-4 border-b border-[hsl(var(--border))]">
-            <div className="flex items-center gap-2">
-              <FilterIcon className="h-5 w-5 text-[hsl(var(--foreground))]" />
-              <h2 className="text-lg font-semibold text-[hsl(var(--foreground))]">
-                تصفية النتائج
-              </h2>
-              {activeFilterCount > 0 && (
-                <span className="inline-flex items-center justify-center px-2 py-0.5 rounded-full text-xs font-medium bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]">
-                  {activeFilterCount}
-                </span>
-              )}
-            </div>
-            <button
-              onClick={handleClose}
-              className="p-1 text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
-              aria-label="إغلاق"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-
-          {/* Filters Content */}
+          {/* Filters Content - no header */}
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
             {/* Session Type Filter - Only for Director */}
             {canChangeSessionType && (
@@ -262,20 +240,20 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
           </div>
 
           {/* Footer Actions */}
-          <div className="p-4 border-t border-[hsl(var(--border))] space-y-2">
+          <div className="p-4 border-t border-[hsl(var(--border))] flex gap-2">
             <Button
-              onClick={handleClearFilters}
-              variant="outline"
-              className="w-full"
-              disabled={activeFilterCount === 0}
+              onClick={() => { onClose(); }}
+              className="flex-1"
             >
-              مسح جميع الفلاتر
+              تطبيق
             </Button>
             <Button
-              onClick={onClose}
-              className="w-full"
+              variant="outline"
+              onClick={handleClearFilters}
+              className="flex-1"
+              disabled={activeFilterCount === 0}
             >
-              تطبيق الفلاتر
+              مسح
             </Button>
           </div>
         </div>

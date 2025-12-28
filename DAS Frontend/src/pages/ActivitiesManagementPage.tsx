@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, hasActivityEndDatePassed } from '@/lib/utils';
 import { activitiesApi } from '@/services/api';
 import { Activity } from '@/types/school';
 import { ActivityFormDialog } from '@/components/activities/ActivityFormDialog';
@@ -27,7 +27,8 @@ import {
   Trash2,
   Eye,
   TrendingUp,
-  Sparkles
+  Sparkles,
+  CheckCircle2
 } from 'lucide-react';
 
 const ActivitiesManagementPage: React.FC = () => {
@@ -35,7 +36,7 @@ const ActivitiesManagementPage: React.FC = () => {
   const location = useLocation();
 
   // State
-  const [activeTab, setActiveTab] = useState<'activities' | 'reports'>('activities');
+  const [activeTab] = useState<'activities'>('activities');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const viewModeContainerRef = React.useRef<HTMLDivElement>(null);
   const [viewModeIndicatorStyle, setViewModeIndicatorStyle] = useState<React.CSSProperties>({});
@@ -261,19 +262,11 @@ const ActivitiesManagementPage: React.FC = () => {
           </Button>
         </div>
 
-        {/* Tabs */}
-        <SegmentedControl
-          value={activeTab}
-          onValueChange={(value) => setActiveTab(value as 'activities' | 'reports')}
-          options={[
-            { value: 'activities', label: 'النشاطات' },
-            { value: 'reports', label: 'التقارير' },
-          ]}
-        />
+        {/* Title */}
+        <h2 className="text-2xl font-semibold">النشاطات</h2>
 
-        {/* Filters - Only show on activities tab */}
-        {activeTab === 'activities' && (
-          <Card className="ios-card">
+        {/* Filters */}
+        <Card className="ios-card">
             <CardContent className="pt-6 space-y-3">
               {/* Search */}
               <div className="relative">
@@ -366,11 +359,9 @@ const ActivitiesManagementPage: React.FC = () => {
               </div>
             </CardContent>
           </Card>
-        )}
 
         {/* Content */}
-        {activeTab === 'activities' ? (
-          loading ? (
+        {loading ? (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
@@ -422,6 +413,12 @@ const ActivitiesManagementPage: React.FC = () => {
                           </Badge>
                           {!activity.is_active && (
                             <Badge variant="outline">غير نشط</Badge>
+                          )}
+                          {hasActivityEndDatePassed(activity.end_date) && (
+                            <Badge variant="default" className="bg-green-600 hover:bg-green-700 flex items-center gap-1">
+                              <CheckCircle2 className="h-3 w-3" />
+                              مكتمل
+                            </Badge>
                           )}
                         </div>
                       </div>
@@ -480,6 +477,8 @@ const ActivitiesManagementPage: React.FC = () => {
                         variant="outline"
                         size="sm"
                         className="flex-1"
+                        disabled={hasActivityEndDatePassed(activity.end_date)}
+                        title={hasActivityEndDatePassed(activity.end_date) ? 'لا يمكن تعديل المشاركين بعد انتهاء النشاط' : ''}
                         onClick={(event) => {
                           event.stopPropagation();
                           handleManageParticipants(activity);
@@ -493,27 +492,7 @@ const ActivitiesManagementPage: React.FC = () => {
                 </Card>
               ))}
             </div>
-          )
-        ) : (
-          // Reports Tab
-          <Card className="ios-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="h-5 w-5" />
-                تقارير النشاطات
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center justify-center py-12">
-                <TrendingUp className="h-12 w-12 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">قريباً</h3>
-                <p className="text-sm text-muted-foreground text-center">
-                  سيتم إضافة التقارير والإحصائيات قريباً
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          )}
 
         {/* Activity Form Dialog */}
         {selectedAcademicYear && (

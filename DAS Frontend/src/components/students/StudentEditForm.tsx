@@ -10,6 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DateInput } from '@/components/ui/date-input';
 import { Student, GradeLevel, SessionType, TransportationType } from '@/types/school';
 import { User, Phone, MapPin, GraduationCap, Bus, Save, AlertCircle, X } from 'lucide-react';
 import { studentsApi } from '@/services/api';
@@ -173,12 +174,15 @@ export const StudentEditForm = ({ student, onCancel, onSuccess }: StudentEditFor
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="birth_date">تاريخ الميلاد *</Label>
-                                        <Input
-                                            id="birth_date"
-                                            type="date"
-                                            {...register('birth_date', { required: 'تاريخ الميلاد مطلوب' })}
+                                        <DateInput
+                                            label="تاريخ الميلاد *"
+                                            value={watchedValues.birth_date || ''}
+                                            onChange={(date) => setValue('birth_date', date, { shouldValidate: true })}
+                                            placeholder="اختر تاريخ الميلاد"
                                         />
+                                        {errors.birth_date && (
+                                            <p className="text-sm text-red-500">{(errors.birth_date as any)?.message}</p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">

@@ -7,6 +7,8 @@ import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
 import { Alert, AlertDescription } from '../ui/alert';
+import { ConfirmationDialog } from '../ui/confirmation-dialog';
+import { useToast } from '@/hooks/use-toast';
 import api from '@/services/api';
 
 interface Holiday {
@@ -30,6 +32,7 @@ interface DailySummary {
 }
 
 export function HolidayManagement({ academicYearId, sessionType, selectedDate: propSelectedDate }: HolidayManagementProps) {
+  const { toast } = useToast();
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [showDialog, setShowDialog] = useState(false);
@@ -38,6 +41,10 @@ export function HolidayManagement({ academicYearId, sessionType, selectedDate: p
   const [currentMonth, setCurrentMonth] = useState(new Date(propSelectedDate || new Date()));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [holidayToDelete, setHolidayToDelete] = useState<Holiday | null>(null);
+  const [pastDateConfirmOpen, setPastDateConfirmOpen] = useState(false);
+  const [pendingPastDate, setPendingPastDate] = useState<string | null>(null);
 
   useEffect(() => {
     fetchHolidays();
@@ -89,26 +96,33 @@ export function HolidayManagement({ academicYearId, sessionType, selectedDate: p
     const selectedDateObj = new Date(dateStr);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    // التحقق من أن التاريخ ليس في نهاية الأسبوع الافتراضية
+    const dayOfWeek = selectedDateObj.getDay();
+    const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; // الجمعة أو السبت
 
     if (existing) {
       // حذف العطلة
-      if (confirm('هل تريد إلغاء هذه العطلة؟')) {
-        try {
-          await api.delete(`/daily/holidays/${existing.id}`);
-          fetchHolidays();
-        } catch (error) {
-
-          alert('حدث خطأ أثناء حذف العطلة');
-        }
-      }
+      setHolidayToDelete(existing);
+      setDeleteConfirmOpen(true);
     } else {
+      // منع إضافة عطلة في أيام نهاية الأسبوع الافتراضية
+      if (isWeekend) {
+        toast({
+          title: 'غير مسموح',
+          description: 'لا يمكنك إضافة عطلة في أيام نهاية الأسبوع الافتراضية',
+          variant: 'destructive',
+        });
+        return;
+      }
+
       // التحقق إذا كان تاريخ سابق
       if (selectedDateObj < today) {
         const hasData = await checkPastDateData(dateStr);
         if (hasData) {
-          if (!confirm('⚠️ هذا التاريخ يحتوي على بيانات حضور أو إجراءات. هل تريد المتابعة وجعله عطلة؟')) {
-            return;
-          }
+          setPendingPastDate(dateStr);
+          setPastDateConfirmOpen(true);
+          return;
         }
       }
 
@@ -133,10 +147,45 @@ export function HolidayManagement({ academicYearId, sessionType, selectedDate: p
       resetForm();
       await fetchHolidays(); // تحديث العطل بعد الحفظ
     } catch (error) {
-
-      alert('حدث خطأ أثناء حفظ العطلة');
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء حفظ العطلة',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const confirmDeleteHoliday = async () => {
+    if (!holidayToDelete) return;
+
+    try {
+      await api.delete(`/daily/holidays/${holidayToDelete.id}`);
+      setDeleteConfirmOpen(false);
+      setHolidayToDelete(null);
+      fetchHolidays();
+      toast({
+        title: 'نجح',
+        description: 'تم حذف العطلة بنجاح',
+      });
+    } catch (error) {
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء حذف العطلة',
+        variant: 'destructive',
+      });
+      setDeleteConfirmOpen(false);
+      setHolidayToDelete(null);
+    }
+  };
+
+  const handleConfirmPastDate = () => {
+    if (pendingPastDate) {
+      setSelectedDate(pendingPastDate);
+      setShowDialog(true);
+      setPastDateConfirmOpen(false);
+      setPendingPastDate(null);
     }
   };
 
@@ -260,53 +309,54 @@ export function HolidayManagement({ academicYearId, sessionType, selectedDate: p
         </div>
       </CardHeader>
       <CardContent className="pt-6">
-        {/* شريط التنقل بين الأشهر */}
-        <div className="flex items-center justify-between mb-6 p-4 bg-muted/50 rounded-lg border border-border">
+        {/* شريط التنقل بين الأشهر - محسّن */}
+        <div className="flex items-center justify-between mb-6 p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-2xl border border-primary/20">
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={goToPreviousMonth}
-            className="hover:bg-primary/10"
+            className="h-9 w-9 p-0 hover:bg-primary/10 transition-all"
           >
-            <ChevronRight className="h-4 w-4" />
+            <ChevronRight className="h-5 w-5 text-primary" />
           </Button>
 
-          <div className="text-center">
-            <h3 className="text-lg font-bold text-foreground">
+          <div className="text-center flex-1 cursor-pointer group">
+            <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">
               {formatMonthYear(currentMonth)}
             </h3>
             {currentMonth.getMonth() === today.getMonth() &&
              currentMonth.getFullYear() === today.getFullYear() && (
-              <p className="text-xs text-primary">
-                {getArabicDayName(today)} - {today.getDate()} {formatMonthYear(today).split(' ')[0]}
+              <p className="text-xs text-accent font-medium mt-1">
+                {getArabicDayName(today)} - {today.getDate()}
               </p>
             )}
           </div>
 
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
             onClick={goToNextMonth}
-            className="hover:bg-primary/10"
+            className="h-9 w-9 p-0 hover:bg-primary/10 transition-all"
           >
-            <ChevronLeft className="h-4 w-4" />
+            <ChevronLeft className="h-5 w-5 text-primary" />
           </Button>
         </div>
 
         {/* أسماء الأيام */}
-        <div className="grid grid-cols-7 gap-2 mb-2">
-          {['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'].map((day) => (
+        <div className="grid grid-cols-7 gap-2 mb-3">
+          {['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'].map((day, idx) => (
             <div
               key={day}
-              className="text-center font-semibold text-xs py-2 rounded text-muted-foreground"
+              className="text-center font-semibold text-xs py-2 rounded-lg text-muted-foreground hover:text-primary transition-colors"
+              title={['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][idx]}
             >
               {day}
             </div>
           ))}
         </div>
 
-        {/* أيام التقويم */}
-        <div className="grid grid-cols-7 gap-2">
+        {/* أيام التقويم - تصميم محسّن */}
+        <div className="grid grid-cols-7 gap-2 p-3 bg-muted/30 rounded-2xl border border-border/50">
           {generateCalendarDates().map((date, index) => {
             if (!date) {
               return <div key={`empty-${index}`} className="aspect-square" />;
@@ -326,36 +376,39 @@ export function HolidayManagement({ academicYearId, sessionType, selectedDate: p
                 key={dateStr}
                 onClick={() => handleDateClick(dateStr)}
                 className={`
-                  aspect-square p-1 text-center rounded-lg border-2 transition-all duration-200
-                  ${isTodayDate
-                    ? 'ring-2 ring-accent ring-offset-2 ring-offset-background'
-                    : ''
+                  aspect-square p-2 text-center rounded-xl font-semibold text-sm
+                  transition-all duration-200 relative overflow-hidden group
+                  ${
+                    isSelected
+                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40'
+                      : isHol
+                        ? 'bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40'
+                        : 'bg-card text-foreground hover:bg-primary/10 border border-border/50'
                   }
-                  ${isSelected
-                    ? 'ring-2 ring-primary ring-offset-2 ring-offset-background bg-primary/10'
-                    : isHol
-                      ? 'bg-accent/10 border-accent hover:bg-accent/20'
-                      : 'bg-card border-border hover:bg-primary/5 hover:border-primary'
+                  ${
+                    isTodayDate && !isSelected
+                      ? 'ring-2 ring-accent ring-offset-2 ring-offset-background'
+                      : ''
                   }
+                  disabled:opacity-50 disabled:cursor-not-allowed
                 `}
                 title={holiday?.holiday_name || (isDefault ? 'عطلة نهاية الأسبوع' : '')}
               >
-                <div className={`text-sm font-semibold ${
-                  isSelected
-                    ? 'text-primary'
-                    : isTodayDate
-                      ? 'text-accent'
-                      : isHol
-                        ? 'text-accent'
-                        : 'text-foreground'
-                }`}>
-                  {date.getDate()}
+                <div className="flex flex-col items-center gap-0.5">
+                  <span className="font-bold">{date.getDate()}</span>
+                  {isHol && (
+                    <>
+                      <span className="text-[8px] font-semibold opacity-75">
+                        {isDefault ? '●' : '◆'}
+                      </span>
+                      {!isDefault && (
+                        <span className="text-[7px] font-semibold opacity-75 line-clamp-1 w-full">
+                          {holiday?.holiday_name || 'عطلة'}
+                        </span>
+                      )}
+                    </>
+                  )}
                 </div>
-                {isHol && (
-                  <div className="text-[9px] leading-tight mt-0.5 text-accent font-medium">
-                    عطلة
-                  </div>
-                )}
               </button>
             );
           })}
@@ -371,25 +424,32 @@ export function HolidayManagement({ academicYearId, sessionType, selectedDate: p
           </Alert>
         )}
 
-        {/* معلومات توضيحية */}
-        <div className="mt-6 p-4 bg-muted/30 rounded-lg border border-border">
-          <p className="text-sm font-semibold text-foreground mb-3">دليل الألوان:</p>
+        {/* معلومات توضيحية - محسّنة */}
+        <div className="mt-6 p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-2xl border border-primary/20">
+          <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <Calendar className="w-4 h-4 text-primary" />
+            دليل الألوان والرموز
+          </p>
           <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-card border-2 border-border"></div>
+              <div className="w-6 h-6 rounded-lg bg-card border border-border/50"></div>
               <span>يوم عادي</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded bg-accent/10 border-2 border-accent"></div>
-              <span>عطلة رسمية</span>
+              <div className="w-6 h-6 rounded-lg bg-accent/20 border border-accent/40 flex items-center justify-center text-[10px]">
+                ●
+              </div>
+              <span>عطلة</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded ring-2 ring-primary bg-primary/10"></div>
-              <span>اليوم المحدد</span>
+              <div className="w-6 h-6 rounded-lg bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center">
+                ●
+              </div>
+              <span>مختار</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded ring-2 ring-accent"></div>
-              <span>اليوم الحالي</span>
+              <div className="w-6 h-6 rounded-lg bg-card ring-2 ring-accent ring-offset-2 ring-offset-background"></div>
+              <span>اليوم</span>
             </div>
           </div>
         </div>
@@ -457,6 +517,29 @@ export function HolidayManagement({ academicYearId, sessionType, selectedDate: p
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Holiday Confirmation Dialog */}
+        <ConfirmationDialog
+          open={deleteConfirmOpen}
+          onOpenChange={setDeleteConfirmOpen}
+          title="حذف العطلة"
+          description="هل تريد إلغاء هذه العطلة؟"
+          confirmText="حذف"
+          cancelText="إلغاء"
+          variant="destructive"
+          onConfirm={confirmDeleteHoliday}
+        />
+
+        {/* Past Date Confirmation Dialog */}
+        <ConfirmationDialog
+          open={pastDateConfirmOpen}
+          onOpenChange={setPastDateConfirmOpen}
+          title="تحذير"
+          description="⚠️ هذا التاريخ يحتوي على بيانات حضور أو إجراءات. هل تريد المتابعة وجعله عطلة؟"
+          confirmText="المتابعة"
+          cancelText="إلغاء"
+          onConfirm={handleConfirmPastDate}
+        />
       </CardContent>
     </Card>
   );

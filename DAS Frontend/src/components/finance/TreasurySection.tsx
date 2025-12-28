@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { FinanceCard } from './FinanceCard';
 import { FinanceCardDetailModal } from './FinanceCardDetailModal';
 import { AddFinanceCardModal } from './AddFinanceCardModal';
@@ -31,6 +32,8 @@ export const TreasurySection: React.FC<TreasurySectionProps> = ({ academicYearId
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [cardToDelete, setCardToDelete] = useState<number | null>(null);
 
   useEffect(() => {
     if (academicYearId) {
@@ -96,13 +99,16 @@ export const TreasurySection: React.FC<TreasurySectionProps> = ({ academicYearId
     loadDashboard();
   };
 
-  const handleDeleteCard = async (cardId: number) => {
-    if (!confirm('هل أنت متأكد من حذف هذا الكارد؟ سيتم حذف جميع المعاملات المرتبطة به.')) {
-      return;
-    }
+  const handleDeleteCard = (cardId: number) => {
+    setCardToDelete(cardId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteCard = async () => {
+    if (cardToDelete === null) return;
 
     try {
-      await financeManagerApi.deleteFinanceCard(cardId);
+      await financeManagerApi.deleteFinanceCard(cardToDelete);
       toast({
         title: 'نجح',
         description: 'تم حذف الكارد بنجاح'
@@ -114,6 +120,9 @@ export const TreasurySection: React.FC<TreasurySectionProps> = ({ academicYearId
         description: error?.response?.data?.detail || 'فشل حذف الكارد',
         variant: 'destructive'
       });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setCardToDelete(null);
     }
   };
 
@@ -353,6 +362,18 @@ export const TreasurySection: React.FC<TreasurySectionProps> = ({ academicYearId
         onClose={() => setShowAddModal(false)}
         academicYearId={academicYearId}
         onSuccess={handleUpdate}
+      />
+
+      {/* Delete Card Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="حذف الكارد"
+        description="هل أنت متأكد من حذف هذا الكارد؟ سيتم حذف جميع المعاملات المرتبطة به."
+        confirmText="حذف"
+        cancelText="إلغاء"
+        variant="destructive"
+        onConfirm={confirmDeleteCard}
       />
     </div>
   );

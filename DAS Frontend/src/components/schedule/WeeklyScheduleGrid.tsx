@@ -133,10 +133,20 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
   // Drag and Drop Handlers
   const handleDragStart = (e: React.DragEvent, assignment: ScheduleAssignment) => {
     if (readOnly) return;
+    
+    // Ensure dataTransfer is available (sometimes issues in certain environments)
+    if (e.dataTransfer) {
+      e.dataTransfer.effectAllowed = 'move';
+      try {
+        e.dataTransfer.setData('application/json', JSON.stringify(assignment));
+      } catch (err) {
+        // Fallback if setData fails
+        console.warn('Failed to set drag data:', err);
+      }
+    }
+    
     setDraggedAssignment(assignment);
     setSwapValidityCache(new Map()); // Clear cache when starting new drag
-    e.dataTransfer.effectAllowed = 'move';
-    e.dataTransfer.setData('application/json', JSON.stringify(assignment));
   };
 
   const handleDragOver = async (e: React.DragEvent, day: number, period: number) => {
@@ -312,9 +322,13 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
           onDragLeave={handleDragLeave}
           onDrop={(e) => handleDrop(e, day, period)}
           className={cn(
-            "h-full min-h-[90px] p-3 border border-dashed border-gray-200 dark:border-slate-600/50 rounded-lg bg-gray-50 dark:bg-slate-800/30 hover:bg-gray-100 dark:hover:bg-slate-700/40 transition-colors flex items-center justify-center",
+            "h-full min-h-[90px] p-3 border border-dashed border-gray-200 dark:border-slate-600/50 rounded-lg bg-gray-50 dark:bg-slate-800/30 hover:bg-gray-100 dark:hover:bg-slate-700/40 transition-colors flex items-center justify-center select-none",
             isDragOver && !isValidDrop && "bg-red-100 dark:bg-red-900/40 border-red-400 dark:border-red-600 animate-pulse"
           )}
+          style={{
+            pointerEvents: 'auto',
+            touchAction: 'none'
+          }}
         >
           <span className="text-xs text-gray-400 dark:text-slate-400">فارغ</span>
         </div>
@@ -326,13 +340,24 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
     return (
       <div
         draggable={!readOnly && !isSwapping}
-        onDragStart={(e) => handleDragStart(e, assignment)}
+        onDragStart={(e) => {
+          // Ensure drag event is properly initialized
+          if (e.dataTransfer) {
+            handleDragStart(e, assignment);
+          }
+        }}
         onDragEnd={handleDragEnd}
         onDragOver={(e) => handleDragOver(e, day, period)}
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, day, period)}
+        onMouseDown={(e) => {
+          // Explicitly allow selection start for drag in Tauri
+          if (e.button === 0) { // Left mouse button
+            // This helps ensure the drag event fires properly
+          }
+        }}
         className={cn(
-          "h-full min-h-[90px] p-3 rounded-lg transition-all cursor-move group relative",
+          "h-full min-h-[90px] p-3 rounded-lg transition-all cursor-move group relative select-none",
           hasConflict
             ? "bg-red-50 dark:bg-red-950 border-2 border-red-300 dark:border-red-700"
             : "bg-blue-50 dark:bg-slate-800/90 border border-blue-200 dark:border-slate-600/50",
@@ -348,7 +373,9 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
             : isSwapping
               ? 'swapPulse 0.4s ease-in-out'
               : undefined,
-          transition: 'all 0.3s ease-in-out'
+          transition: 'all 0.3s ease-in-out',
+          pointerEvents: 'auto',
+          touchAction: 'none'
         }}
       >
         {/* Conflict Indicator */}

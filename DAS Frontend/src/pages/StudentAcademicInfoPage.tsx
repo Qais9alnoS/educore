@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { api } from '@/services/api';
 import type { Student, StudentAcademic, Class, AcademicYear, Subject } from '@/types/school';
 import { toast } from '@/hooks/use-toast';
@@ -56,6 +57,9 @@ const StudentAcademicInfoPage = () => {
   const [showUnsavedChangesDialog, setShowUnsavedChangesDialog] = useState<boolean>(false);
   const [pendingNavigation, setPendingNavigation] = useState<string | null>(null);
   const [highlightedStudentId, setHighlightedStudentId] = useState<number | null>(null);
+  const [switchConfirmOpen, setSwitchConfirmOpen] = useState(false);
+  const [pendingSwitchAction, setPendingSwitchAction] = useState<'subject' | 'total' | null>(null);
+  const [pendingSwitchValue, setPendingSwitchValue] = useState<any>(null);
   const studentRowRefs = useRef<Map<number, HTMLTableRowElement>>(new Map());
   
   // Max grades for each type (default 100)
@@ -1630,6 +1634,23 @@ const StudentAcademicInfoPage = () => {
     );
   };
 
+  const handleSwitchConfirm = () => {
+    if (pendingSwitchAction === 'subject' && pendingSwitchValue !== null) {
+      setSelectedSubject(pendingSwitchValue);
+      setIsTotalView(false);
+      setPendingGrades(new Map());
+      setHasUnsavedChanges(false);
+    } else if (pendingSwitchAction === 'total') {
+      setIsTotalView(true);
+      setSelectedSubject(null);
+      setPendingGrades(new Map());
+      setHasUnsavedChanges(false);
+    }
+    setSwitchConfirmOpen(false);
+    setPendingSwitchAction(null);
+    setPendingSwitchValue(null);
+  };
+
   return (
     <div className="min-h-screen bg-background p-6" dir="rtl">
       <div className="max-w-7xl mx-auto space-y-6">
@@ -1811,18 +1832,13 @@ const StudentAcademicInfoPage = () => {
                       <Select
                         value={selectedSubject?.toString() || ''}
                         onValueChange={(value) => {
-                          setSelectedSubject(parseInt(value));
-                          setIsTotalView(false);
-                          // مسح التغييرات المعلقة عند تغيير المادة
                           if (pendingGrades.size > 0) {
-                            const confirmSwitch = window.confirm(
-                              `لديك ${pendingGrades.size} تغيير غير محفوظ. هل تريد تغيير المادة وفقدان هذه التغييرات؟`
-                            );
-                            if (!confirmSwitch) {
-                              return;
-                            }
-                            setPendingGrades(new Map());
-                            setHasUnsavedChanges(false);
+                            setPendingSwitchAction('subject');
+                            setPendingSwitchValue(parseInt(value));
+                            setSwitchConfirmOpen(true);
+                          } else {
+                            setSelectedSubject(parseInt(value));
+                            setIsTotalView(false);
                           }
                         }}
                         disabled={isTotalView || subjects.length === 0}
@@ -1849,20 +1865,14 @@ const StudentAcademicInfoPage = () => {
                         variant={isTotalView ? "default" : "outline"}
                         onClick={() => {
                           const newTotalView = !isTotalView;
-                          setIsTotalView(newTotalView);
-                          if (newTotalView) {
-                            setSelectedSubject(null);
-                            // مسح التغييرات المعلقة عند الدخول لوضع المجموع
-                            if (pendingGrades.size > 0) {
-                              const confirmSwitch = window.confirm(
-                                `لديك ${pendingGrades.size} تغيير غير محفوظ. هل تريد التبديل إلى وضع المجموع وفقدان هذه التغييرات؟`
-                              );
-                              if (!confirmSwitch) {
-                                setIsTotalView(false);
-                                return;
-                              }
-                              setPendingGrades(new Map());
-                              setHasUnsavedChanges(false);
+                          if (newTotalView && pendingGrades.size > 0) {
+                            setPendingSwitchAction('total');
+                            setPendingSwitchValue(true);
+                            setSwitchConfirmOpen(true);
+                          } else {
+                            setIsTotalView(newTotalView);
+                            if (newTotalView) {
+                              setSelectedSubject(null);
                             }
                           }
                         }}
@@ -2329,6 +2339,18 @@ const StudentAcademicInfoPage = () => {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Switch Confirmation Dialog */}
+        <ConfirmationDialog
+          open={switchConfirmOpen}
+          onOpenChange={setSwitchConfirmOpen}
+          title="تأكيد التغيير"
+          description={`لديك ${pendingGrades.size} تغيير غير محفوظ. هل تريد المتابعة وفقدان هذه التغييرات؟`}
+          confirmText="متابعة"
+          cancelText="إلغاء"
+          variant="destructive"
+          onConfirm={handleSwitchConfirm}
+        />
       </div>
     </div>
   );

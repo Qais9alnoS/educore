@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
+import { DateInput } from '@/components/ui/date-input';
 import { directorApi } from '@/services/api';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -209,23 +210,19 @@ const DirectorNotesPage: React.FC = () => {
                   )}
 
                   {/* Date Range Filter */}
-                  <div className="space-y-2">
-                    <Label>من تاريخ</Label>
-                    <Input
-                      type="date"
-                      value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                    />
-                  </div>
+                  <DateInput
+                    label="من تاريخ"
+                    value={dateFrom}
+                    onChange={(date) => setDateFrom(date)}
+                    placeholder="اختر تاريخ البداية"
+                  />
 
-                  <div className="space-y-2">
-                    <Label>إلى تاريخ</Label>
-                    <Input
-                      type="date"
-                      value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
-                    />
-                  </div>
+                  <DateInput
+                    label="إلى تاريخ"
+                    value={dateTo}
+                    onChange={(date) => setDateTo(date)}
+                    placeholder="اختر تاريخ النهاية"
+                  />
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 pt-4">

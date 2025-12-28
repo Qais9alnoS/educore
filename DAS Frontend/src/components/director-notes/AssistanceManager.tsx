@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { DateInput } from '@/components/ui/date-input';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +28,8 @@ const AssistanceManager: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showDialog, setShowDialog] = useState(false);
   const [editingRecord, setEditingRecord] = useState<AssistanceRecord | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [recordToDelete, setRecordToDelete] = useState<number | null>(null);
 
   const [formData, setFormData] = useState({
     title: '',
@@ -124,14 +128,29 @@ const AssistanceManager: React.FC = () => {
     setShowDialog(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('هل أنت متأكد من حذف هذه المساعدة؟')) return;
+  const handleDelete = (id: number) => {
+    setRecordToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteRecord = async () => {
+    if (recordToDelete === null) return;
 
     try {
-      await directorApi.deleteAssistanceRecord(id);
+      await directorApi.deleteAssistanceRecord(recordToDelete);
       toast({ title: 'نجاح', description: 'تم حذف المساعدة' });
       fetchRecords();
     } catch (error) {
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء حذف المساعدة',
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setRecordToDelete(null);
+    }
+  };
 
       toast({
         title: 'خطأ',
@@ -295,12 +314,11 @@ const AssistanceManager: React.FC = () => {
               </div>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="assistance_date">التاريخ</Label>
-              <Input
-                id="assistance_date"
-                type="date"
+              <DateInput
+                label="التاريخ"
                 value={formData.assistance_date}
-                onChange={(e) => setFormData({ ...formData, assistance_date: e.target.value })}
+                onChange={(date) => setFormData({ ...formData, assistance_date: date })}
+                placeholder="اختر التاريخ"
               />
             </div>
             <div className="space-y-2">
@@ -323,6 +341,18 @@ const AssistanceManager: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="حذف المساعدة"
+        description="هل أنت متأكد من حذف هذه المساعدة؟"
+        confirmText="حذف"
+        cancelText="إلغاء"
+        variant="destructive"
+        onConfirm={confirmDeleteRecord}
+      />
     </div>
   );
 };

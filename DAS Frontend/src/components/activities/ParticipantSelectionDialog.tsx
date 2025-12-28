@@ -22,6 +22,7 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { classesApi, studentsApi, activitiesApi } from "@/services/api";
 import { Class, Student, Activity } from "@/types/school";
+import { hasActivityEndDatePassed } from "@/lib/utils";
 import {
   Search,
   Users,
@@ -47,6 +48,7 @@ export const ParticipantSelectionDialog: React.FC<
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"classes" | "students">("classes");
+  const isActivityEnded = hasActivityEndDatePassed(activity.end_date);
 
   // Data
   const [classes, setClasses] = useState<Class[]>([]);

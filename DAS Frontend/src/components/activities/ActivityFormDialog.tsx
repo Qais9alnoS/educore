@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { Activity } from '@/types/school';
 import { ImageUploadManager } from './ImageUploadManager';
+import { DateInput } from '@/components/ui/date-input';
 import { ChevronLeft, ChevronRight, Check, X } from 'lucide-react';
 
 interface ActivityFormDialogProps {
@@ -329,33 +330,30 @@ export const ActivityFormDialog: React.FC<ActivityFormDialogProps> = ({
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="start_date">تاريخ البداية *</Label>
-                <Input
-                  id="start_date"
-                  type="date"
+                <DateInput
+                  label="تاريخ البداية *"
                   value={formData.start_date}
-                  onChange={(e) => handleInputChange('start_date', e.target.value)}
+                  onChange={(date) => handleInputChange('start_date', date)}
+                  placeholder="اختر تاريخ البداية"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="end_date">تاريخ النهاية *</Label>
-                <Input
-                  id="end_date"
-                  type="date"
+                <DateInput
+                  label="تاريخ النهاية *"
                   value={formData.end_date}
-                  onChange={(e) => handleInputChange('end_date', e.target.value)}
+                  onChange={(date) => handleInputChange('end_date', date)}
+                  placeholder="اختر تاريخ النهاية"
                 />
               </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="registration_deadline">آخر موعد للتسجيل</Label>
-              <Input
-                id="registration_deadline"
-                type="date"
+              <DateInput
+                label="آخر موعد للتسجيل"
                 value={formData.registration_deadline}
-                onChange={(e) => handleInputChange('registration_deadline', e.target.value)}
+                onChange={(date) => handleInputChange('registration_deadline', date)}
+                placeholder="اختر آخر موعد للتسجيل (اختياري)"
               />
               <p className="text-sm text-muted-foreground">
                 اختياري - يجب أن يكون قبل تاريخ بداية النشاط

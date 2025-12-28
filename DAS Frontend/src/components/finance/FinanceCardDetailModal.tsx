@@ -5,6 +5,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +15,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DateInput } from '@/components/ui/date-input';
 import {
   Save,
   Plus,
@@ -48,6 +50,8 @@ export const FinanceCardDetailModal: React.FC<FinanceCardDetailModalProps> = ({
   const [loading, setLoading] = useState(false);
   const [card, setCard] = useState<FinanceCardDetailed | null>(null);
   const [showTransactionForm, setShowTransactionForm] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [transactionToDelete, setTransactionToDelete] = useState<number | null>(null);
 
   // Transaction form state
   const [transactionType, setTransactionType] = useState<'income' | 'expense'>('income');
@@ -297,7 +301,7 @@ export const FinanceCardDetailModal: React.FC<FinanceCardDetailModalProps> = ({
     }
   };
 
-  const handleDeleteTransaction = async (transactionId: number, transaction: any) => {
+  const handleDeleteTransaction = (transactionId: number, transaction: any) => {
     // Prevent deleting system-generated aggregated transactions
     if (isAggregatedActivityTransaction(transaction)) {
       toast({
@@ -309,11 +313,16 @@ export const FinanceCardDetailModal: React.FC<FinanceCardDetailModalProps> = ({
       return;
     }
 
-    if (!confirm('هل أنت متأكد من حذف هذه المعاملة؟')) return;
+    setTransactionToDelete(transactionId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteTransaction = async () => {
+    if (transactionToDelete === null) return;
 
     try {
       setLoading(true);
-      await financeManagerApi.deleteCardTransaction(transactionId);
+      await financeManagerApi.deleteCardTransaction(transactionToDelete);
 
       toast({
         title: 'نجح',
@@ -330,6 +339,8 @@ export const FinanceCardDetailModal: React.FC<FinanceCardDetailModalProps> = ({
       });
     } finally {
       setLoading(false);
+      setDeleteConfirmOpen(false);
+      setTransactionToDelete(null);
     }
   };
 
@@ -356,13 +367,15 @@ export const FinanceCardDetailModal: React.FC<FinanceCardDetailModalProps> = ({
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="text-xl font-bold flex items-center justify-between">
-            <span>{card?.card.card_name}</span>
-            <Badge variant="outline" className="text-xs">
+        <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b">
+          <div className="flex items-center gap-3">
+            <DialogTitle className="text-xl font-bold text-ellipsis overflow-hidden whitespace-nowrap max-w-[calc(100%-100px)]">
+              {card?.card.card_name}
+            </DialogTitle>
+            <Badge variant="outline" className="text-xs whitespace-nowrap">
               {card?.card.card_type === 'income' ? 'دخل' : card?.card.card_type === 'expense' ? 'خرج' : 'دخل وخرج'}
             </Badge>
-          </DialogTitle>
+          </div>
         </DialogHeader>
 
         {loading && <div className="text-center py-8">جاري التحميل...</div>}
@@ -469,14 +482,12 @@ export const FinanceCardDetailModal: React.FC<FinanceCardDetailModalProps> = ({
                           step="0.01"
                         />
                       </div>
-                      <div>
-                        <Label>التاريخ</Label>
-                        <Input
-                          type="date"
-                          value={transactionDate}
-                          onChange={(e) => setTransactionDate(e.target.value)}
-                        />
-                      </div>
+                      <DateInput
+                        label="التاريخ"
+                        value={transactionDate}
+                        onChange={(date) => setTransactionDate(date)}
+                        placeholder="اختر التاريخ"
+                      />
                     </div>
 
                     <div>
@@ -583,14 +594,14 @@ export const FinanceCardDetailModal: React.FC<FinanceCardDetailModalProps> = ({
                                     />
                                   </div>
                                   <div>
-                                    <Label className="text-xs">التاريخ</Label>
-                                    <Input
-                                      type="date"
+                                    <DateInput
+                                      label="التاريخ"
                                       value={editTransactionData.transaction_date}
-                                      onChange={(e) => setEditTransactionData({
+                                      onChange={(date) => setEditTransactionData({
                                         ...editTransactionData,
-                                        transaction_date: e.target.value
+                                        transaction_date: date
                                       })}
+                                      placeholder="اختر التاريخ"
                                     />
                                   </div>
                                 </div>
@@ -730,6 +741,18 @@ export const FinanceCardDetailModal: React.FC<FinanceCardDetailModalProps> = ({
         )}
       </DialogContent>
     </Dialog>
+
+    {/* Delete Transaction Confirmation Dialog */}
+    <ConfirmationDialog
+      open={deleteConfirmOpen}
+      onOpenChange={setDeleteConfirmOpen}
+      title="حذف المعاملة"
+      description="هل أنت متأكد من حذف هذه المعاملة؟"
+      confirmText="حذف"
+      cancelText="إلغاء"
+      variant="destructive"
+      onConfirm={confirmDeleteTransaction}
+    />
   );
 };
 

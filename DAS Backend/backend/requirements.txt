@@ -22,5 +22,4 @@ pillow==11.1.0            # Image processing (services/file_service.py, export_s
 python-magic==0.4.27      # File type detection (services/file_service.py)
 python-multipart==0.0.6   # Form data parsing
 
-# Environment
-python-dotenv==1.1.0      # Environment variables
+# Environment variables are now hardcoded in config.py

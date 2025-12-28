@@ -1,3 +1,14 @@
+import sys
+import os
+import io
+
+# Ensure UTF-8 encoding (critical for compiled PyInstaller builds on Windows)
+if hasattr(sys.stdout, 'reconfigure'):
+    sys.stdout.reconfigure(encoding='utf-8')
+if hasattr(sys.stderr, 'reconfigure'):
+    sys.stderr.reconfigure(encoding='utf-8')
+os.environ['PYTHONIOENCODING'] = 'utf-8'
+
 from fastapi import FastAPI, Depends, Request, HTTPException, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -5,7 +16,6 @@ from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from slowapi.errors import RateLimitExceeded
-import os
 
 from app.config import settings
 from app.database import engine, get_db, update_database_schema, Base
@@ -37,24 +47,11 @@ app = FastAPI(
 )
 
 # Setup CORS for localhost access - THIS MUST BE FIRST to handle preflight requests
-# Allow all localhost ports for development
-allowed_origins = [
-    "http://localhost:3000",
-    "http://localhost:3001", 
-    "http://localhost:5173",  # Vite default
-    "http://localhost:5174",
-    "http://localhost:8000",
-    "http://127.0.0.1:3000",
-    "http://127.0.0.1:3001",
-    "http://127.0.0.1:5173",
-    "http://127.0.0.1:5174",
-    "http://127.0.0.1:8000",
-]
-
+# Allow all origins for desktop app - no credentials needed for local backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_credentials=True,
+    allow_origins=["*"],  # Allow all origins for desktop app
+    allow_credentials=False,  # Disabled to allow wildcard
     allow_methods=["*"],
     allow_headers=["*"],
     expose_headers=["*"],
@@ -228,7 +225,7 @@ if __name__ == "__main__":
         "app.main:app",
         host=settings.HOST,
         port=settings.PORT,
-        reload=True  # Development only
+        reload=False  # Never use reload in exe mode - causes startup chaos
     )
 
 

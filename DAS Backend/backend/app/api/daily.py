@@ -266,8 +266,11 @@ def create_holiday(
         entity_name=db_holiday.holiday_name,
         description=f"تم إضافة يوم عطلة: {db_holiday.holiday_name}",
         current_user=current_user,
-        academic_year_id=db_holiday.academic_year_id,
-        new_values=holiday.dict()
+        session_type=holiday.session_type,
+        meta_data={
+            "academic_year_id": db_holiday.academic_year_id,
+            "new_values": holiday.dict()
+        }
     )
     
     return db_holiday

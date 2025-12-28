@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Separator } from '@/components/ui/separator';
+import { DateInput } from '@/components/ui/date-input';
 import { StudentRegistrationForm as StudentFormType, GradeLevel, SessionType, TransportationType } from '@/types/school';
 import { User, Phone, MapPin, GraduationCap, Bus, FileText, Save, AlertCircle } from 'lucide-react';
 import { studentsApi } from '@/services/api'; // Import the real API
@@ -155,12 +156,15 @@ export const StudentRegistrationForm = () => {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="birth_date">تاريخ الميلاد *</Label>
-                                    <Input
-                                        id="birth_date"
-                                        type="date"
-                                        {...register('birth_date', { required: 'تاريخ الميلاد مطلوب' })}
+                                    <DateInput
+                                        label="تاريخ الميلاد *"
+                                        value={watch('birth_date') || ''}
+                                        onChange={(date) => setValue('birth_date', date, { shouldValidate: true })}
+                                        placeholder="اختر تاريخ الميلاد"
                                     />
+                                    {errors.birth_date && (
+                                        <p className="text-sm text-red-500">{(errors.birth_date as any)?.message}</p>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">

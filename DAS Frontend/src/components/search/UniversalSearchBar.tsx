@@ -48,23 +48,253 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
   const getFilteredPages = useCallback(() => {
     const userRole = authState.user?.role || '';
     
+    // This configuration is intentionally aligned with Sidebar navigation (Sidebar.tsx)
+    // so that every visible page for each role is also searchable, and hidden pages
+    // for that role do not appear in search results.
     const allPages = [
-      { name: 'لوحة التحكم', route: '/dashboard', roles: ['director', 'morning_school', 'evening_school', 'morning_supervisor', 'evening_supervisor', 'finance'] },
-      { name: 'إدارة السنوات الدراسية', route: '/academic-years', roles: ['director'] },
-      { name: 'معلومات المدرسة', route: '/school-info', roles: ['director', 'morning_school', 'evening_school'] },
-      { name: 'المعلومات الشخصية للطلاب', route: '/students/personal-info', roles: ['director', 'morning_school', 'evening_school'] },
-      { name: 'المعلومات الأكاديمية للطلاب', route: '/students/academic-info', roles: ['director', 'morning_school', 'evening_school'] },
-      { name: 'المعلومات المالية للطلاب', route: '/finance?tab=students', roles: ['director', 'finance'] },
-      { name: 'إدارة المعلمين', route: '/teachers', roles: ['director', 'morning_school', 'evening_school'] },
-      { name: 'إدارة الجداول الدراسية', route: '/schedules', roles: ['director', 'morning_school', 'evening_school'] },
-      { name: 'الصفحة اليومية', route: '/daily', roles: ['director', 'morning_school', 'evening_school', 'morning_supervisor', 'evening_supervisor'] },
-      { name: 'إدارة النشاطات', route: '/activities', roles: ['director', 'morning_school', 'evening_school', 'morning_supervisor', 'evening_supervisor'] },
-      { name: 'الإدارة المالية', route: '/finance', roles: ['director', 'finance'] },
-      { name: 'الصندوق', route: '/finance?tab=treasury', roles: ['director', 'finance'] },
-      { name: 'إدارة المستخدمين', route: '/user-management', roles: ['director'] },
-      { name: 'ملاحظات المدير', route: '/director/notes', roles: ['director'] },
-      { name: 'المكافآت والمساعدات', route: '/director/rewards', roles: ['director'] },
-      { name: 'التحليلات', route: '/analytics', roles: ['director'] },
+      // لوحة التحكم / Dashboard
+      {
+        name: 'لوحة التحكم',
+        route: '/dashboard',
+        roles: ['director', 'morning_school', 'evening_school', 'finance'],
+        tags: [
+          'لوحة التحكم', 'الصفحة الرئيسية', 'الرئيسية', 'داشبورد', 'dashboard',
+          'إدارة المدرسة', 'نظام الإدارة', 'لوحة المدير', 'لوحة المراقبة'
+        ]
+      },
+
+      // الصفحة اليومية
+      {
+        name: 'الصفحة اليومية',
+        route: '/daily',
+        roles: ['director', 'morning_school', 'evening_school'],
+        tags: [
+          'الصفحة اليومية', 'اليومي', 'التحضير اليومي', 'الحضور اليومي',
+          'الدوام اليومي', 'سجل اليوم', 'يوميات المدرسة'
+        ]
+      },
+
+      // ملاحظات المدير - الصفحة الرئيسية للملاحظات
+      {
+        name: 'ملاحظات المدير',
+        route: '/director/notes',
+        roles: ['director'],
+        tags: [
+          'ملاحظات المدير', 'مذكرات المدير', 'دفتر الملاحظات', 'المدير',
+          'ملاحظات', 'إدارة الملاحظات', 'دفتر المدير'
+        ]
+      },
+
+      // ملاحظات المدير - الأهداف
+      {
+        name: 'أهداف المدير',
+        route: '/director/notes/browse/goals',
+        roles: ['director'],
+        tags: [
+          'الأهداف', 'أهداف المدير', 'اهداف', 'هدف', 'خطة', 'خطط',
+          'الخطة السنوية', 'خطة المدير', 'الخطط الإستراتيجية'
+        ]
+      },
+
+      // ملاحظات المدير - المشاريع
+      {
+        name: 'مشاريع المدير',
+        route: '/director/notes/browse/projects',
+        roles: ['director'],
+        tags: [
+          'المشاريع', 'مشاريع', 'مشروع', 'مشاريع المدير', 'البرامج',
+          'برامج المدرسة', 'خطط المشاريع'
+        ]
+      },
+
+      // ملاحظات المدير - المدونات
+      {
+        name: 'مدونات المدير',
+        route: '/director/notes/browse/blogs',
+        roles: ['director'],
+        tags: [
+          'مدونات', 'مدونات المدير', 'مقالات', 'مقال', 'كتابات',
+          'يوميات المدير', 'المدونة', 'blog'
+        ]
+      },
+
+      // ملاحظات المدير - الأمور التعليمية والإدارية
+      {
+        name: 'الأمور التعليمية والإدارية',
+        route: '/director/notes/browse/educational_admin',
+        roles: ['director'],
+        tags: [
+          'الأمور التعليمية والإدارية', 'الأمور الإدارية', 'الادارية', 'التعليمية',
+          'إدارة تعليمية', 'ملفات إدارية', 'ملفات تعليمية'
+        ]
+      },
+
+      // ملاحظات المدير - المكافئات
+      {
+        name: 'المكافئات',
+        route: '/director/notes/rewards',
+        roles: ['director'],
+        tags: [
+          'المكافئات', 'المكافآت', 'مكافأة', 'مكافئات', 'مكافات',
+          'جوائز', 'تحفيز', 'حوافز', 'مكافآت الطلاب', 'مكافآت المعلمين'
+        ]
+      },
+
+      // ملاحظات المدير - المساعدات
+      {
+        name: 'المساعدات',
+        route: '/director/notes/assistance',
+        roles: ['director'],
+        tags: [
+          'المساعدات', 'مساعدات', 'دعم', 'مساعدة', 'اعانات', 'إعانات',
+          'مساعدات الطلاب', 'مساعدات اجتماعية'
+        ]
+      },
+
+      // معلومات المدرسة
+      {
+        name: 'معلومات المدرسة',
+        route: '/school-info',
+        roles: ['director', 'morning_school', 'evening_school'],
+        tags: [
+          'معلومات المدرسة', 'بيانات المدرسة', 'المدرسة', 'اعدادات المدرسة',
+          'إدارة المدرسة', 'معلومات الصفوف', 'الصفوف', 'المدارس'
+        ]
+      },
+
+      // الطلاب - معلومات شخصية
+      {
+        name: 'معلومات شخصية للطلاب',
+        route: '/students/personal-info',
+        roles: ['director', 'morning_school', 'evening_school'],
+        tags: [
+          'معلومات شخصية', 'معلومات الطلاب', 'الطلاب', 'الطالب', 'بيانات الطلاب',
+          'معلومات فردية', 'الملف الشخصي للطالب', 'ادارة الطلاب', 'إدارة الطلاب'
+        ]
+      },
+
+      // الطلاب - معلومات دراسية
+      {
+        name: 'معلومات دراسية للطلاب',
+        route: '/students/academic-info',
+        roles: ['director', 'morning_school', 'evening_school'],
+        tags: [
+          'معلومات دراسية', 'العلامات', 'الدرجات', 'السجل الدراسي',
+          'نتائج الطلاب', 'التحصيل الدراسي', 'درجات الطلاب', 'السجل الاكاديمي'
+        ]
+      },
+
+      // الطلاب - تحليلات
+      {
+        name: 'تحليلات الطلاب',
+        route: '/students/analytics',
+        roles: ['director', 'morning_school', 'evening_school'],
+        tags: [
+          'تحليلات الطلاب', 'تحليل الطلاب', 'إحصائيات الطلاب', 'تقارير الطلاب',
+          'إحصائيات', 'تحليلات', 'تقارير دراسية', 'تحليل النتائج'
+        ]
+      },
+
+      // الطلاب - معلومات مالية (من منظور المدير)
+      {
+        name: 'معلومات مالية للطلاب',
+        route: '/finance?tab=students',
+        roles: ['director'],
+        tags: [
+          'معلومات مالية للطلاب', 'مالية الطلاب', 'رسوم الطلاب', 'الأقساط',
+          'الاقساط', 'الرسوم', 'المتأخرات', 'الديون', 'دفعات الطلاب'
+        ]
+      },
+
+      // الأساتذة / المعلمين
+      {
+        name: 'الأساتذة',
+        route: '/teachers',
+        roles: ['director', 'morning_school', 'evening_school'],
+        tags: [
+          'الأساتذة', 'المعلمين', 'المعلمون', 'المدرسين', 'مدرسين',
+          'إدارة المعلمين', 'ادارة المعلمين', 'إدارة الأساتذة', 'ادارة الاساتذة',
+          'المعلم', 'الاستاذ', 'اساتذة', 'معلمين'
+        ]
+      },
+
+      // الصندوق
+      {
+        name: 'الصندوق',
+        route: '/finance?tab=treasury',
+        roles: ['director', 'finance'],
+        tags: [
+          'الصندوق', 'المالية', 'الخزينة', 'الخزنة', 'النقدية',
+          'صندوق المدرسة', 'إدارة الصندوق', 'treasury'
+        ]
+      },
+
+      // إدارة الجداول
+      {
+        name: 'إدارة الجداول',
+        route: '/schedules',
+        roles: ['director', 'morning_school', 'evening_school', 'morning_supervisor', 'evening_supervisor'],
+        tags: [
+          'إدارة الجداول', 'الجداول الدراسية', 'جدول الدروس', 'جدول الحصص',
+          'الجداول', 'الجدول', 'جدول الصف', 'جدول الحصص اليومية'
+        ]
+      },
+
+      // النشاطات
+      {
+        name: 'النشاطات',
+        route: '/activities',
+        roles: ['director'],
+        tags: [
+          'النشاطات', 'الانشطة', 'الأنشطة', 'نشاطات', 'نشاط', 'نشاط طلابي',
+          'أنشطة مدرسية', 'أنشطة الطلاب', 'أنشطة المدرسة'
+        ]
+      },
+
+      // السنوات الدراسية
+      {
+        name: 'السنوات الدراسية',
+        route: '/academic-years',
+        roles: ['director', 'morning_school', 'evening_school', 'finance'],
+        tags: [
+          'السنوات الدراسية', 'السنة الدراسية', 'سنة دراسية', 'عام دراسي',
+          'سنوات الدراسة', 'إدارة السنوات الدراسية', 'ادارة السنوات الدراسية'
+        ]
+      },
+
+      // إدارة تسجيل الدخول / المستخدمين
+      {
+        name: 'إدارة تسجيل الدخول',
+        route: '/user-management',
+        roles: ['director'],
+        tags: [
+          'إدارة تسجيل الدخول', 'ادارة تسجيل الدخول', 'إدارة المستخدمين',
+          'ادارة المستخدمين', 'المستخدمين', 'حسابات المستخدمين',
+          'صلاحيات المستخدمين', 'مستخدمين النظام'
+        ]
+      },
+
+      // الإدارة المالية العامة (واجهة المالية الرئيسية)
+      {
+        name: 'الإدارة المالية',
+        route: '/finance',
+        roles: ['director', 'finance'],
+        tags: [
+          'الإدارة المالية', 'المالية', 'ادارة المالية', 'حسابات',
+          'حسابات المدرسة', 'إدارة المال', 'النظام المالي', 'مالية المدرسة'
+        ]
+      },
+
+      // مدير المالية - تبويب الطلاب
+      {
+        name: 'مالية الطلاب',
+        route: '/finance?tab=students',
+        roles: ['finance'],
+        tags: [
+          'مالية الطلاب', 'طلاب المالية', 'رسوم الطلاب', 'أقساط الطلاب',
+          'اقساط الطلاب', 'حساب الطلاب', 'ديون الطلاب', 'متأخرات الطلاب'
+        ]
+      },
     ];
 
     return allPages
@@ -77,6 +307,7 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
         category: 'Pages',
         url: page.route,
         relevance_score: 1.0,
+        tags: page.tags,
         data: { route: page.route }
       }));
   }, [authState.user?.role]);
@@ -240,7 +471,51 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
                 id: s.id,
                 type: 'student' as const,
                 title: s.name || s.full_name,
-                subtitle: `${s.grade || s.grade_level || ''} ${s.section || ''}`.trim(),
+                subtitle: (() => {
+                  // Arabic labels for grade level and number
+                  const gradeNumberToArabic: Record<number, string> = {
+                    1: 'الأول',
+                    2: 'الثاني',
+                    3: 'الثالث',
+                    4: 'الرابع',
+                    5: 'الخامس',
+                    6: 'السادس',
+                    7: 'السابع',
+                    8: 'الثامن',
+                    9: 'التاسع',
+                    10: 'العاشر',
+                    11: 'الحادي عشر',
+                    12: 'الثاني عشر',
+                  };
+
+                  const gradeLevelToArabic: Record<string, string> = {
+                    primary: 'ابتدائي',
+                    intermediate: 'إعدادي',
+                    secondary: 'ثانوي',
+                  };
+
+                  const sessionTypeToArabic: Record<string, string> = {
+                    morning: 'صباحي',
+                    evening: 'مسائي',
+                  };
+
+                  const gradeNumber = s.grade_number || s.grade || 1;
+                  const gradeName = gradeNumberToArabic[Number(gradeNumber)] || `${gradeNumber}`;
+                  const levelKey = (s.grade_level || '').toString().toLowerCase();
+                  const levelName = gradeLevelToArabic[levelKey] || s.grade_level || '';
+                  const sessionName = sessionTypeToArabic[(s.session_type || '').toString().toLowerCase()] || '';
+
+                  // Format: "الصف الأول ابتدائي - صباحي" (without section for now)
+                  const base = levelName
+                    ? `الصف ${gradeName} ${levelName}`
+                    : `${s.grade || s.grade_level || ''}`.trim();
+
+                  if (sessionName) {
+                    return `${base} - ${sessionName}`;
+                  }
+
+                  return base;
+                })(),
                 category: 'Students',
                 url: `/students/personal-info`,
                 relevance_score: 1.0,
@@ -268,20 +543,41 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
             if (yearsResponse.success && yearsResponse.data) {
               const matchingYears = yearsResponse.data
                 .filter((year: any) => 
-                  year.year_name?.includes(query) ||
-                  year.start_date?.includes(query) ||
-                  year.end_date?.includes(query)
+                  year.year_name?.includes(query)
                 )
-                .map((year: any) => ({
-                  id: year.id,
-                  type: 'academic_year' as const,
-                  title: year.year_name,
-                  subtitle: `${year.start_date} - ${year.end_date}`,
-                  category: 'Academic Years',
-                  url: '/academic-years',
-                  relevance_score: 0.95,
-                  data: year
-                }));
+                .map((year: any) => {
+                  // Show a special label only for the currently selected academic year
+                  const isCurrentYear = year.id === academicYearId;
+                  // In this system, the "default" academic year is represented by is_active
+                  const isDefaultYear = !!year.is_active;
+
+                  let subtitle: string | undefined;
+                  if (isCurrentYear && isDefaultYear) {
+                    // The year is both default and the one the user is currently in
+                    subtitle = 'إفتراضية - السنة الحالية';
+                  } else if (isCurrentYear) {
+                    // Current but not default
+                    subtitle = 'السنة الحالية';
+                  } else if (isDefaultYear) {
+                    // Default but not the current year
+                    subtitle = 'إفتراضية';
+                  } else {
+                    // Other years: no extra label
+                    subtitle = undefined;
+                  }
+
+                  return {
+                    id: year.id,
+                    type: 'academic_year' as const,
+                    title: year.year_name,
+                    subtitle,
+                    category: 'Academic Years',
+                    url: '/academic-years',
+                    relevance_score: 0.95,
+                    data: { ...year, isCurrentYear, isDefaultYear },
+                    is_clickable: !isCurrentYear // Current year is not clickable
+                  };
+                });
               searchResults.push(...matchingYears);
               console.log(`📅 Found ${matchingYears.length} academic years`);
             }
@@ -424,21 +720,31 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
               session_type: sessionFilter
             });
             if (activitiesResponse.success && activitiesResponse.data) {
+              // خريطة بسيطة لتحويل أنواع النشاطات من إنجليزي إلى عربي
+              const activityTypeLabels: Record<string, string> = {
+                academic: 'نشاط أكاديمي',
+              };
+
               const matchingActivities = activitiesResponse.data
                 .filter((activity: any) => 
                   activity.name?.toLowerCase().includes(query.toLowerCase()) ||
                   activity.description?.toLowerCase().includes(query.toLowerCase())
                 )
-                .map((activity: any) => ({
-                  id: activity.id,
-                  type: 'activity' as const,
-                  title: activity.name,
-                  subtitle: activity.activity_type || activity.description?.substring(0, 50),
-                  category: 'Activities',
-                  url: '/activities',
-                  relevance_score: 0.8,
-                  data: activity
-                }));
+                .map((activity: any) => {
+                  const rawType = activity.activity_type as string | undefined;
+                  const translatedType = rawType ? (activityTypeLabels[rawType] || rawType) : undefined;
+
+                  return {
+                    id: activity.id,
+                    type: 'activity' as const,
+                    title: activity.name,
+                    subtitle: translatedType || activity.description?.substring(0, 50) || '',
+                    category: 'Activities',
+                    url: '/activities',
+                    relevance_score: 0.8,
+                    data: activity
+                  };
+                });
               searchResults.push(...matchingActivities);
               console.log(`🎯 Found ${matchingActivities.length} activities`);
             }
@@ -463,15 +769,19 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
                 const matchingNotes = notesResponse.data.results.map((note: any) => {
                   const categoryName = categoryNames[note.folder_type] || note.folder_type;
                   const itemType = note.is_folder ? 'مجلد' : 'ملف';
+
                   return {
                     id: note.id,
                     type: 'director_note' as const,
                     title: note.title,
                     subtitle: `${categoryName} - ${itemType}`,
                     category: 'Director Notes',
-                    url: `/director/notes/edit/${note.id}`,
+                    // For files we still navigate directly to edit; for folders we handle in click handler
+                    url: note.is_folder
+                      ? `/director/notes/browse/${note.folder_type}`
+                      : `/director/notes/edit/${note.id}`,
                     relevance_score: 0.75,
-                    data: note
+                    data: note,
                   };
                 });
                 searchResults.push(...matchingNotes);
@@ -543,9 +853,15 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
           // 9. Add filtered pages to results (if scope allows)
           if (shouldSearchScope('pages')) {
             const filteredPages = getFilteredPages();
-            const pageResults = filteredPages.filter(page => 
-              page.title.toLowerCase().includes(query.toLowerCase())
-            );
+            const queryLower = query.toLowerCase();
+            const pageResults = filteredPages.filter(page => {
+              const titleMatch = page.title.toLowerCase().includes(queryLower);
+              const tags = Array.isArray(page.tags) ? page.tags : [];
+              const tagsMatch = tags.some((tag: string) =>
+                tag.toLowerCase().includes(queryLower)
+              );
+              return titleMatch || tagsMatch;
+            });
             
             console.log(`📄 Found ${pageResults.length} matching pages`);
             searchResults = [...searchResults, ...pageResults];
@@ -598,6 +914,11 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
   }, [query, filters, groupResultsByCategory, toast, getFilteredPages]);
 
   const handleResultClick = (result: UniversalSearchResult) => {
+    // Check if result is clickable (for current academic year)
+    if ((result as any).is_clickable === false) {
+      return; // Don't handle click for non-clickable results
+    }
+
     const userRole = authState.user?.role || '';
     const academicYearId = parseInt(localStorage.getItem('selected_academic_year_id') || '0');
     
@@ -703,22 +1024,32 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
       });
       
     } else if (result.type === 'academic_year') {
-      // Select the academic year and navigate to dashboard
+      // Select the academic year (same pattern as AcademicYearManagementPage)
       localStorage.setItem('selected_academic_year_id', result.id.toString());
+      localStorage.setItem('selected_academic_year_name', result.title);
       
-      // Dispatch event to notify other components
-      window.dispatchEvent(new CustomEvent('academicYearChanged', { 
-        detail: { yearId: result.id, yearData: result.data } 
-      }));
+      // If this year is set as active/default
+      if (result.data?.is_active) {
+        localStorage.setItem('auto_open_academic_year', 'true');
+      } else {
+        localStorage.setItem('auto_open_academic_year', 'false');
+      }
       
-      // Navigate to dashboard or stay on current page
+      // Dispatch event to notify other components (DesktopLayout, etc.)
+      window.dispatchEvent(new Event('academicYearChanged'));
+      
+      // Show success toast
       toast({
         title: "تم تغيير السنة الدراسية",
         description: `تم التبديل إلى ${result.title}`,
       });
       
-      // Refresh the page to load data for new year
-      window.location.reload();
+      // Close search
+      setIsExpanded(false);
+      setQuery('');
+      
+      // Navigate to dashboard (React Router will handle the navigation without hard reload)
+      navigate('/dashboard');
       
     } else if (result.type === 'schedule') {
       // Navigate to schedules page with class selected and popup open
@@ -746,13 +1077,38 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
       const isFolder = result.data?.is_folder;
       const folderType = result.data?.folder_type;
       
+      console.log('📂 Director note clicked:', {
+        result,
+        isFolder,
+        folderType,
+        id: result.id,
+        title: result.title,
+        data: result.data
+      });
+      
       if (isFolder) {
         // Navigate to the category browse page with folder opened
+        // Include optional parent folder metadata so breadcrumbs can show parent > child
+        const parentFolderId = result.data?.parent_folder_id ?? null;
+        const parentFolderTitle = result.data?.parent_folder_title ?? result.data?.parent_title ?? null;
+
+        console.log('📂 Navigating to folder:', {
+          path: `/director/notes/browse/${folderType}`,
+          folderId: result.id,
+          title: result.data?.title || result.title,
+          parentFolderId,
+          parentFolderTitle,
+        });
+
         navigate(`/director/notes/browse/${folderType}`, {
           state: {
-            openFolderId: result.id,
-            folderData: result.data
-          }
+            folderId: result.id,
+            folderData: {
+              title: result.data?.title || result.title,
+              parentFolderId,
+              parentFolderTitle,
+            },
+          },
         });
       } else {
         // Navigate directly to the note/file edit page
@@ -812,7 +1168,7 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
     }
   };
 
-  const handleStudentNavigation = (destination: 'personal' | 'academic' | 'finance') => {
+  const handleStudentNavigation = (destination: 'personal' | 'academic' | 'finance' | 'analytics') => {
     if (!selectedStudentData) return;
 
     const { id, gradeLevel, gradeNumber, section, sessionType } = selectedStudentData;
@@ -841,6 +1197,18 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
             studentId: id,
             scrollToStudent: true,
             highlightStudent: true
+          }
+        }
+      });
+    } else if (destination === 'analytics') {
+      navigate('/students/analytics', {
+        state: {
+          preselected: {
+            gradeLevel,
+            gradeNumber,
+            section,
+            sessionType,
+            studentId: id
           }
         }
       });

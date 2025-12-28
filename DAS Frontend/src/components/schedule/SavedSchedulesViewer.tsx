@@ -22,6 +22,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
   Calendar,
   Eye,
@@ -67,6 +68,8 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
   const [showViewer, setShowViewer] = useState(false);
   const [scheduleAssignments, setScheduleAssignments] = useState<any[]>([]);
   const [loadingDetails, setLoadingDetails] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [scheduleToDelete, setScheduleToDelete] = useState<SavedSchedule | null>(null);
 
   // Fetch saved schedules
   useEffect(() => {
@@ -262,17 +265,20 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
   };
 
   const handleDeleteSchedule = async (schedule: SavedSchedule) => {
-    if (!confirm('هل أنت متأكد من حذف هذا الجدول؟')) {
-      return;
-    }
+    setScheduleToDelete(schedule);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!scheduleToDelete) return;
 
     try {
       // Use the new specific delete endpoint with teacher availability restoration
       const response = await schedulesApi.deleteClassSchedule({
-        academic_year_id: schedule.academic_year_id,
-        session_type: schedule.session_type,
-        class_id: schedule.class_id,
-        section: schedule.section
+        academic_year_id: scheduleToDelete.academic_year_id,
+        session_type: scheduleToDelete.session_type,
+        class_id: scheduleToDelete.class_id,
+        section: scheduleToDelete.section
       });
 
       if (response.success) {
@@ -294,6 +300,9 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
         description: error.message || "حدث خطأ أثناء حذف الجدول",
         variant: "destructive"
       });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setScheduleToDelete(null);
     }
   };
 
@@ -343,9 +352,6 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
               <Calendar className="h-5 w-5 text-blue-600" />
               الجداول المحفوظة ({schedules.length})
             </CardTitle>
-            <Button variant="outline" size="sm" onClick={fetchSchedules}>
-              تحديث
-            </Button>
           </div>
         </CardHeader>
         <CardContent>
@@ -445,6 +451,18 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Delete Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="حذف الجدول"
+        description="هل أنت متأكد من حذف هذا الجدول؟"
+        confirmText="حذف"
+        cancelText="إلغاء"
+        variant="destructive"
+        onConfirm={confirmDelete}
+      />
     </>
   );
 };

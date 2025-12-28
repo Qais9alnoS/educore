@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DateInput } from '@/components/ui/date-input';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -326,18 +327,15 @@ export const TeacherRegistrationForm: React.FC<TeacherRegistrationFormProps> = (
 
                                 {/* Birth Date */}
                                 <div className="space-y-2">
-                                    <Label htmlFor="birth_date" className="flex items-center space-x-2 space-x-reverse">
-                                        <Calendar className="w-4 h-4" />
-                                        <span>تاريخ الميلاد</span>
-                                    </Label>
                                     <Controller
                                         name="birth_date"
                                         control={control}
                                         render={({ field }) => (
-                                            <Input
-                                                {...field}
-                                                type="date"
-                                                placeholder="تاريخ الميلاد"
+                                            <DateInput
+                                                label="تاريخ الميلاد"
+                                                value={field.value || ''}
+                                                onChange={field.onChange}
+                                                placeholder="اختر تاريخ الميلاد"
                                             />
                                         )}
                                     />

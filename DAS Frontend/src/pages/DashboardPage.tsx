@@ -383,7 +383,7 @@ export const DashboardPage: React.FC = () => {
         />
 
         {/* Finance Analytics Dashboard */}
-        <FinanceAnalyticsDashboard compact={false} hideHeader={true} />
+        <FinanceAnalyticsDashboard compact={false} hideHeader={true} academicYearId={academicYearId} />
       </div>
     </div>
   );
@@ -504,7 +504,7 @@ export const DashboardPage: React.FC = () => {
               <h2 className="text-lg font-semibold">نظرة مالية شاملة</h2>
             </div>
             <div className="p-4">
-              <FinanceAnalyticsDashboard compact hideHeader />
+              <FinanceAnalyticsDashboard compact hideHeader academicYearId={academicYearId} />
             </div>
           </div>
         </div>

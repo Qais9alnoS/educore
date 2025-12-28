@@ -43,6 +43,7 @@ export interface UniversalSearchResult {
   academic_year_id?: number;
   session_type?: SessionType;
   is_active?: boolean;
+  is_clickable?: boolean; // Whether the result is clickable (e.g., current year is not clickable)
   created_at?: string;
   updated_at?: string;
 }

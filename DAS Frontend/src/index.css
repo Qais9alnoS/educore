@@ -1,5 +1,5 @@
-/* Import Google Fonts - Modern Premium Typography */
-@import url("https://fonts.googleapis.com/css2?family=Tajawal:wght@300;400;500;700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap");
+/* Import Local Fonts - Bundled for offline use */
+@import "./assets/fonts/fonts.css";
 
 /* Import iOS utilities */
 @import "./styles/ios-utilities.css";
@@ -498,31 +498,27 @@
       0 0 30px hsl(var(--secondary) / 0.2);
   }
 
-  /* Custom Title Bar Styles - Tauri/Electron specific */
+  /* Custom Title Bar Styles - Tauri specific */
   .custom-titlebar {
     -webkit-app-region: drag;
+    app-region: drag;
   }
 
-  .titlebar-center {
-    -webkit-app-region: no-drag;
-  }
-
-  .titlebar-right {
-    -webkit-app-region: no-drag;
-  }
-
-  .titlebar-button,
-  .window-control {
-    -webkit-app-region: no-drag;
-  }
-
-  /* Search bar in titlebar - must be clickable */
-  .titlebar-search {
+  /* All interactive elements must be no-drag */
+  .custom-titlebar button,
+  .custom-titlebar input,
+  .custom-titlebar select,
+  .custom-titlebar a,
+  .custom-titlebar [role="button"],
+  .custom-titlebar [data-tauri-drag-region="false"] {
     -webkit-app-region: no-drag !important;
+    app-region: no-drag !important;
   }
 
-  .titlebar-search * {
+  /* Ensure nested elements in no-drag areas are also no-drag */
+  .custom-titlebar [data-tauri-drag-region="false"] * {
     -webkit-app-region: no-drag !important;
+    app-region: no-drag !important;
   }
 
   /* iOS Fluent UI Surface */

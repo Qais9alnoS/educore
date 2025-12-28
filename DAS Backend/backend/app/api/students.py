@@ -132,7 +132,7 @@ async def create_student(
         
         if matching_class:
             new_student.class_id = matching_class.id
-            print(f"✅ Auto-assigned class_id {matching_class.id} to new student {new_student.full_name}")
+            print(f"[SUCCESS] Auto-assigned class_id {matching_class.id} to new student {new_student.full_name}")
     
     db.add(new_student)
     db.commit()

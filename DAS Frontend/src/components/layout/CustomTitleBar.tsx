@@ -1,134 +1,261 @@
-import React, { useState, useEffect, useRef } from 'react';
-import {
-  minimizeWindow,
-  toggleMaximizeWindow,
-  closeWindow,
-  handleSettings,
-  handleThemeToggle
-} from '@/utils/windowControls';
-import { Settings, Moon, Sun } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { getCurrentWindow } from '@tauri-apps/api/window';
+import { useTheme } from 'next-themes';
+import { Sun, Moon, Monitor } from 'lucide-react';
 import { UniversalSearchBar } from '@/components/search/UniversalSearchBar';
 
-const CustomTitleBar = () => {
-  const [isDarkMode, setIsDarkMode] = useState(false);
-  const searchRef = useRef<HTMLDivElement>(null);
+interface CustomTitleBarProps {
+  /** 'splash' = only nav buttons, 'login' = nav + theme toggle, 'full' = everything */
+  mode?: 'splash' | 'login' | 'full';
+}
 
-  // Global keyboard shortcut for search (Ctrl+K or Cmd+K)
+/**
+ * Custom Title Bar - Merges with app UI
+ * Matches native Windows window controls exactly
+ */
+const CustomTitleBar: React.FC<CustomTitleBarProps> = ({ mode = 'full' }) => {
+  const [isMaximized, setIsMaximized] = useState(false);
+  const [academicYearName, setAcademicYearName] = useState<string>('2025-2026');
+  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
+
   useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Check and listen for maximize state
+  useEffect(() => {
+    const checkMaximized = async () => {
+      try {
+        const win = getCurrentWindow();
+        const maximized = await win.isMaximized();
+        setIsMaximized(maximized);
+      } catch (e) {
+        console.error('Failed to check maximized state:', e);
+      }
+    };
+    checkMaximized();
+
+    // Listen for window resize to update maximize state
+    const handleResize = async () => {
+      try {
+        const win = getCurrentWindow();
+        const maximized = await win.isMaximized();
+        setIsMaximized(maximized);
+      } catch (e) {}
+    };
+
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  // Load academic year name from localStorage
+  useEffect(() => {
+    if (mode !== 'full') return;
+    
+    const storedYearName = localStorage.getItem('selected_academic_year_name');
+    if (storedYearName) {
+      setAcademicYearName(storedYearName);
+    }
+
+    const handleStorageChange = () => {
+      const name = localStorage.getItem('selected_academic_year_name');
+      if (name) setAcademicYearName(name);
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('academicYearChanged', handleStorageChange);
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('academicYearChanged', handleStorageChange);
+    };
+  }, [mode]);
+
+  // Global keyboard shortcut for search (Ctrl+K)
+  useEffect(() => {
+    if (mode !== 'full') return;
+    
     const handleKeyPress = (event: KeyboardEvent) => {
       if ((event.ctrlKey || event.metaKey) && event.key === 'k') {
         event.preventDefault();
-        // Focus the search input
-        const searchInput = searchRef.current?.querySelector('input');
+        const searchInput = document.querySelector('input[placeholder*="بحث"]');
         if (searchInput) {
           (searchInput as HTMLInputElement).focus();
         }
       }
     };
-
     document.addEventListener('keydown', handleKeyPress);
     return () => document.removeEventListener('keydown', handleKeyPress);
-  }, []);
+  }, [mode]);
 
   const handleMinimize = async () => {
-    await minimizeWindow();
+    try {
+      const win = getCurrentWindow();
+      await win.minimize();
+    } catch (e) {
+      console.error('Failed to minimize:', e);
+    }
   };
 
   const handleMaximize = async () => {
-    await toggleMaximizeWindow();
+    try {
+      const win = getCurrentWindow();
+      await win.toggleMaximize();
+      const maximized = await win.isMaximized();
+      setIsMaximized(maximized);
+    } catch (e) {
+      console.error('Failed to toggle maximize:', e);
+    }
   };
 
   const handleClose = async () => {
-    await closeWindow();
+    try {
+      const win = getCurrentWindow();
+      await win.close();
+    } catch (e) {
+      console.error('Failed to close:', e);
+    }
   };
 
-  const onThemeToggle = async () => {
-    await handleThemeToggle();
-    setIsDarkMode(!isDarkMode);
+  // Theme cycling (light -> dark -> system)
+  const cycleTheme = () => {
+    if (theme === 'light') {
+      setTheme('dark');
+    } else if (theme === 'dark') {
+      setTheme('system');
+    } else {
+      setTheme('light');
+    }
   };
 
-  const onSettings = async () => {
-    await handleSettings();
+  const getThemeLabel = () => {
+    switch (theme) {
+      case 'light': return 'وضع النهار';
+      case 'dark': return 'وضع الليل';
+      default: return 'تلقائي';
+    }
   };
 
-  const handleSearchNavigate = () => {
-    // Called when user navigates from search result
-    // Can add any additional logic here if needed
+  const getThemeIcon = () => {
+    if (!mounted) return null;
+    switch (theme) {
+      case 'light':
+        return <Sun className="h-4 w-4" style={{ color: 'hsl(38, 92%, 58%)' }} strokeWidth={2} />;
+      case 'dark':
+        return <Moon className="h-4 w-4" style={{ color: 'hsl(211, 86%, 56%)' }} strokeWidth={2} />;
+      default:
+        return <Monitor className="h-4 w-4 dark:text-white text-black" strokeWidth={2} />;
+    }
   };
+
+  // Native Windows-style icons (matching the exact pixel design)
+  const MinimizeIcon = () => (
+    <svg width="10" height="1" viewBox="0 0 10 1" fill="none">
+      <rect width="10" height="1" fill="currentColor" />
+    </svg>
+  );
+
+  const MaximizeIcon = () => (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+      <rect x="0.5" y="0.5" width="9" height="9" rx="1" ry="1" stroke="currentColor" strokeWidth="1" fill="none" />
+    </svg>
+  );
+
+  const RestoreIcon = () => (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+      {/* Back window */}
+      <rect x="2.5" y="0.5" width="7" height="7" rx="1" ry="1" stroke="currentColor" strokeWidth="1" fill="none" />
+      {/* Front window */}
+      <rect x="0.5" y="2.5" width="7" height="7" rx="1" ry="1" stroke="currentColor" strokeWidth="1" fill="hsl(var(--background))" />
+    </svg>
+  );
+
+  const CloseIcon = () => (
+    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+      <path d="M0 0L10 10M10 0L0 10" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  );
+
+  // Theme Switcher Button (exact copy from ThemeSwitcher component)
+  const ThemeSwitcherButton = () => (
+    <div className="group relative flex items-center">
+      <button
+        onClick={cycleTheme}
+        className="h-9 w-10 flex items-center justify-center rounded-xl bg-[hsl(var(--muted))]/60 border border-[hsl(var(--border))]/40 transition-all duration-200 hover:bg-[hsl(var(--muted))]/80"
+        aria-label={getThemeLabel()}
+      >
+        {getThemeIcon()}
+      </button>
+      <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 bg-popover border border-border rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+        <span className="text-xs text-popover-foreground">{getThemeLabel()}</span>
+      </div>
+    </div>
+  );
 
   return (
     <div
-      className="custom-titlebar fixed top-0 left-0 right-0 h-8 bg-gradient-to-r from-gray-600 to-gray-700 text-white flex items-center justify-between z-50"
+      className="custom-titlebar fixed top-0 left-0 right-0 h-12 bg-background flex items-center z-[9999] select-none"
+      dir="rtl"
       data-tauri-drag-region
     >
-      <div className="titlebar-left flex items-center pl-3 text-sm font-medium">
-        <span>نظام DAS - مدرسة دمشق العربية</span>
-      </div>
-
-      <div className="titlebar-center flex-1 flex justify-center px-4" data-tauri-drag-region="false">
-        {/* Universal Search Bar */}
-        <div ref={searchRef} className="w-full max-w-md">
-          <UniversalSearchBar
-            placeholder="بحث... (Ctrl+K)"
-            onNavigate={handleSearchNavigate}
-          />
+      {/* Right side (RTL) - Year label */}
+      {mode === 'full' && (
+        <div className="flex items-center px-4 h-full" data-tauri-drag-region>
+          <span className="text-[hsl(var(--foreground))] font-semibold text-base">
+            {academicYearName}
+          </span>
         </div>
-      </div>
+      )}
 
-      <div className="titlebar-right flex items-center pr-3" data-tauri-drag-region="false">
-        {/* Custom functionality buttons */}
+      {/* Center - Search bar (only in full mode) */}
+      {mode === 'full' && (
+        <div className="flex-1 flex items-center justify-center h-full" data-tauri-drag-region>
+          <div className="w-full max-w-lg">
+            <UniversalSearchBar placeholder="بحث... (Ctrl+K)" />
+          </div>
+        </div>
+      )}
+
+      {/* Spacer for login/splash modes */}
+      {mode !== 'full' && (
+        <div className="flex-1" data-tauri-drag-region />
+      )}
+
+      {/* Left side (RTL) - Theme switcher (login & full modes) */}
+      {mode !== 'splash' && (
+        <div className="flex items-center px-4 h-full">
+          <ThemeSwitcherButton />
+        </div>
+      )}
+
+      {/* Window Controls - Far left in RTL */}
+      <div className="flex items-center h-full" style={{ direction: 'ltr' }}>
+        {/* Close - red hover */}
         <button
-          className="titlebar-button w-8 h-8 flex items-center justify-center bg-transparent border-none text-white cursor-pointer transition-colors hover:bg-white/20"
-          onClick={onThemeToggle}
-          aria-label="تغيير النمط"
+          onClick={handleClose}
+          className="w-[58px] h-full flex items-center justify-center text-[hsl(var(--foreground))] hover:bg-[#c42b1c] hover:text-white transition-colors"
+          title="إغلاق"
         >
-          {isDarkMode ? (
-            <Sun className="w-4 h-4" />
-          ) : (
-            <Moon className="w-4 h-4" />
-          )}
+          <CloseIcon />
         </button>
 
+        {/* Maximize/Restore */}
         <button
-          className="titlebar-button w-8 h-8 flex items-center justify-center bg-transparent border-none text-white cursor-pointer transition-colors hover:bg-white/20"
-          onClick={onSettings}
-          aria-label="الإعدادات"
+          onClick={handleMaximize}
+          className="w-[58px] h-full flex items-center justify-center text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors"
+          title={isMaximized ? "استعادة" : "تكبير"}
         >
-          <Settings className="w-4 h-4" />
+          {isMaximized ? <RestoreIcon /> : <MaximizeIcon />}
         </button>
 
-        {/* Window controls */}
-        <div className="window-controls flex">
-          <button
-            className="window-control w-12 h-8 flex items-center justify-center bg-transparent border-none text-white cursor-pointer transition-colors hover:bg-white/20"
-            onClick={handleMinimize}
-            aria-label="تصغير"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M2 6H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </button>
-
-          <button
-            className="window-control w-12 h-8 flex items-center justify-center bg-transparent border-none text-white cursor-pointer transition-colors hover:bg-white/20"
-            onClick={handleMaximize}
-            aria-label="تكبير"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M4 2H10V8M2 10V4H8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-            </svg>
-          </button>
-
-          <button
-            className="window-control close w-12 h-8 flex items-center justify-center bg-transparent border-none text-white cursor-pointer transition-colors hover:bg-red-500"
-            onClick={handleClose}
-            aria-label="إغلاق"
-          >
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
-              <path d="M2 2L10 10M10 2L2 10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-            </svg>
-          </button>
-        </div>
+        {/* Minimize */}
+        <button
+          onClick={handleMinimize}
+          className="w-[58px] h-full flex items-center justify-center text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors"
+          title="تصغير"
+        >
+          <MinimizeIcon />
+        </button>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ import { ar } from "date-fns/locale";
 import { Calendar as CalendarIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
+import { AdvancedCalendar } from "@/components/ui/advanced-calendar";
 import {
   Popover,
   PopoverContent,
@@ -16,6 +16,8 @@ interface DatePickerProps {
   onChange?: (date: Date | undefined) => void;
   placeholder?: string;
   className?: string;
+  minDate?: Date;
+  maxDate?: Date;
 }
 
 export function DatePicker({
@@ -23,6 +25,8 @@ export function DatePicker({
   onChange,
   placeholder = "اختر تاريخاً",
   className,
+  minDate,
+  maxDate,
 }: DatePickerProps) {
   return (
     <Popover>
@@ -43,13 +47,12 @@ export function DatePicker({
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
+      <PopoverContent className="w-auto p-0 border-0 shadow-2xl" align="start">
+        <AdvancedCalendar
           selected={value}
           onSelect={onChange}
-          initialFocus
-          className="rounded-xl border shadow-lg"
+          minDate={minDate}
+          maxDate={maxDate}
         />
       </PopoverContent>
     </Popover>

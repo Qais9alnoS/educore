@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
     User,
     Calendar,
@@ -31,6 +32,8 @@ const TeacherManagementPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [loading, setLoading] = useState(true);
     const [showAddDialog, setShowAddDialog] = useState(false);
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+    const [teacherToDelete, setTeacherToDelete] = useState<number | null>(null);
 
     // Get session type based on user role
     const sessionType = authState.user?.role === 'morning_school' ? 'morning' :
@@ -140,12 +143,15 @@ const TeacherManagementPage = () => {
     };
 
     const handleDeleteTeacher = async (teacherId: number) => {
-        if (!confirm('هل أنت متأكد من حذف هذا الأستاذ؟ لا يمكن التراجع عن هذا الإجراء.')) {
-            return;
-        }
+        setTeacherToDelete(teacherId);
+        setDeleteConfirmOpen(true);
+    };
+
+    const confirmDeleteTeacher = async () => {
+        if (teacherToDelete === null) return;
 
         try {
-            const response = await teachersApi.delete(teacherId);
+            const response = await teachersApi.delete(teacherToDelete);
             if (response.success) {
                 toast({
                     title: "نجاح",
@@ -153,7 +159,7 @@ const TeacherManagementPage = () => {
                 });
 
                 // Clear selected teacher if it was deleted
-                if (selectedTeacher?.id === teacherId) {
+                if (selectedTeacher?.id === teacherToDelete) {
                     setSelectedTeacher(null);
                 }
 
@@ -166,6 +172,9 @@ const TeacherManagementPage = () => {
                 description: "فشل في حذف الأستاذ",
                 variant: "destructive"
             });
+        } finally {
+            setDeleteConfirmOpen(false);
+            setTeacherToDelete(null);
         }
     };
 
@@ -353,6 +362,18 @@ const TeacherManagementPage = () => {
                         setShowAddDialog(false);
                     }}
                     sessionType={sessionType}
+                />
+
+                {/* Delete Teacher Confirmation Dialog */}
+                <ConfirmationDialog
+                    open={deleteConfirmOpen}
+                    onOpenChange={setDeleteConfirmOpen}
+                    title="حذف الأستاذ"
+                    description="هل أنت متأكد من حذف هذا الأستاذ؟ لا يمكن التراجع عن هذا الإجراء."
+                    confirmText="حذف"
+                    cancelText="إلغاء"
+                    variant="destructive"
+                    onConfirm={confirmDeleteTeacher}
                 />
             </div>
         </div>

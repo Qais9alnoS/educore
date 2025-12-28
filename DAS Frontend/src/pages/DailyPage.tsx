@@ -30,11 +30,24 @@ export default function DailyPage() {
   const [allowedSessions, setAllowedSessions] = useState<('morning' | 'evening')[]>([]);
   const [isHoliday, setIsHoliday] = useState<boolean>(false);
   const [holidayInfo, setHolidayInfo] = useState<any>(null);
+  const [academicYearRange, setAcademicYearRange] = useState<{ start: number; end: number } | null>(null);
 
   useEffect(() => {
     fetchActiveAcademicYear();
     determineAllowedSessions();
   }, [state.user]);
+
+  const extractYearRange = (yearLabel: string): { start: number; end: number } | null => {
+    // Extract years from format like "2024-2025"
+    const match = yearLabel.match(/(\d{4})-(\d{4})/);
+    if (match) {
+      return {
+        start: parseInt(match[1], 10),
+        end: parseInt(match[2], 10)
+      };
+    }
+    return null;
+  };
 
   useEffect(() => {
     if (academicYear) {
@@ -55,6 +68,8 @@ export default function DailyPage() {
             year_name: storedYearName || '',
             is_active: true
           });
+          const range = extractYearRange(storedYearName || '');
+          setAcademicYearRange(range);
           return;
         }
       }
@@ -62,7 +77,10 @@ export default function DailyPage() {
       const response = await api.get('/academic/years?active=true');
       const years = response.data as AcademicYear[];
       if (years.length > 0) {
-        setAcademicYear(years[0]);
+        const year = years[0];
+        setAcademicYear(year);
+        const range = extractYearRange(year.year_name);
+        setAcademicYearRange(range);
       }
     } catch (error) {
 
@@ -201,6 +219,8 @@ export default function DailyPage() {
                       setDateKey(prev => prev + 1);
                     }
                   }}
+                  minDate={academicYearRange ? new Date(academicYearRange.start, 0, 1) : undefined}
+                  maxDate={academicYearRange ? new Date(academicYearRange.end, 11, 31) : undefined}
                   className="w-full"
                 />
               </div>

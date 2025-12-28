@@ -2088,25 +2088,57 @@ async def get_income_completion_stats(
 
 @router.get("/analytics/transactions-by-period")
 async def get_transactions_by_period(
-    academic_year_id: int = Query(...),
+    academic_year_id: Optional[int] = Query(None),
     period_type: str = Query(..., regex="^(weekly|monthly|yearly)$"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_finance_user)
 ):
-    """Get all finance card transactions aggregated by time period (weekly, monthly, or yearly)"""
+    """
+    Get all finance card transactions aggregated by time period (weekly, monthly, or yearly).
+    
+    For yearly period_type:
+    - If academic_year_id is provided: returns data for that specific year only
+    - If academic_year_id is None: returns data for ALL academic years (for year comparison)
+    
+    For weekly/monthly period_type:
+    - academic_year_id is required
+    """
     from datetime import timedelta
     from collections import defaultdict
     
     try:
-        # Get academic year info for yearly aggregation
-        academic_year = db.query(AcademicYear).filter(AcademicYear.id == academic_year_id).first()
-        if not academic_year:
-            raise HTTPException(status_code=404, detail="Academic year not found")
+        # For weekly/monthly, academic_year_id is required
+        if period_type in ["weekly", "monthly"] and not academic_year_id:
+            raise HTTPException(
+                status_code=400, 
+                detail="academic_year_id is required for weekly and monthly period types"
+            )
         
-        # Get all finance cards for this academic year
-        cards = db.query(FinanceCard).filter(
-            FinanceCard.academic_year_id == academic_year_id
-        ).all()
+        # Determine which cards and transactions to fetch
+        if period_type == "yearly" and not academic_year_id:
+            # Fetch ALL academic years and their cards for year comparison
+            all_academic_years = db.query(AcademicYear).order_by(AcademicYear.id).all()
+            if not all_academic_years:
+                return {"periods": [], "income_data": [], "expense_data": []}
+            
+            # Build a map of academic_year_id -> year_name for labeling
+            year_names = {year.id: year.year_name for year in all_academic_years}
+            
+            # Get all finance cards (across all years)
+            cards = db.query(FinanceCard).all()
+            
+        else:
+            # Single academic year mode (for weekly/monthly/yearly with specific year)
+            academic_year = db.query(AcademicYear).filter(AcademicYear.id == academic_year_id).first()
+            if not academic_year:
+                raise HTTPException(status_code=404, detail="Academic year not found")
+            
+            year_names = {academic_year.id: academic_year.year_name}
+            
+            # Get all finance cards for this academic year
+            cards = db.query(FinanceCard).filter(
+                FinanceCard.academic_year_id == academic_year_id
+            ).all()
         
         if not cards:
             return {"periods": [], "income_data": [], "expense_data": []}
@@ -2119,6 +2151,9 @@ async def get_transactions_by_period(
         
         if not transactions:
             return {"periods": [], "income_data": [], "expense_data": []}
+        
+        # Build card_id -> academic_year_id mapping for yearly aggregation
+        card_to_year = {card.id: card.academic_year_id for card in cards}
         
         # Aggregate by period
         period_data = defaultdict(lambda: {"income": Decimal("0"), "expense": Decimal("0")})
@@ -2149,9 +2184,13 @@ async def get_transactions_by_period(
                 period_label = f"{month_names_ar[trans_date.month]} {trans_date.year}"
                 
             else:  # yearly
-                # Use academic year format
-                period_key = str(academic_year_id)
-                period_label = academic_year.year_name  # e.g., "2024-2025"
+                # Get the academic year for this transaction's card
+                trans_year_id = card_to_year.get(transaction.card_id)
+                if not trans_year_id:
+                    continue  # Skip if card not found (shouldn't happen)
+                
+                period_key = str(trans_year_id)
+                period_label = year_names.get(trans_year_id, f"Year {trans_year_id}")
             
             # Aggregate amounts
             if transaction.transaction_type == "income":

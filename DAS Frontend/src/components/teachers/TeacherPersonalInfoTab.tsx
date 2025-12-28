@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateInput } from '@/components/ui/date-input';
 import {
     Dialog,
     DialogContent,
@@ -301,10 +302,10 @@ export const TeacherPersonalInfoTab: React.FC<TeacherPersonalInfoTabProps> = ({ 
                     <div className="space-y-2">
                         <Label>تاريخ الميلاد</Label>
                         {isEditing ? (
-                            <Input
-                                type="date"
+                            <DateInput
                                 value={formData.birth_date || ''}
-                                onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                                onChange={(date) => setFormData({ ...formData, birth_date: date })}
+                                placeholder="اختر تاريخ الميلاد"
                             />
                         ) : (
                             <p className="text-sm">{teacher.birth_date || '-'}</p>
@@ -790,19 +791,18 @@ const ExperienceDialog: React.FC<ExperienceDialogProps> = ({ open, onOpenChange,
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label>تاريخ البداية *</Label>
-                            <Input
-                                type="date"
+                            <DateInput
+                                label="تاريخ البداية *"
                                 value={formData.start_date}
-                                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                                onChange={(date) => setFormData({ ...formData, start_date: date })}
+                                placeholder="اختر تاريخ البداية"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label>تاريخ النهاية</Label>
-                            <Input
-                                type="date"
+                            <DateInput
+                                label="تاريخ النهاية"
                                 value={formData.end_date || ''}
-                                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                                onChange={(date) => setFormData({ ...formData, end_date: date })}
                                 placeholder="اتركه فارغاً إذا كان مستمراً"
                             />
                         </div>

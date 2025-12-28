@@ -21,6 +21,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { DateInput } from "@/components/ui/date-input";
 import {
   Sheet,
   SheetContent,
@@ -279,32 +280,28 @@ export const HistoryCard: React.FC = () => {
                 </SheetHeader>
                 <div className="mt-6 space-y-4">
                   {/* Date range */}
-                  <div>
-                    <label className="text-sm font-medium">من تاريخ</label>
-                    <Input
-                      type="date"
-                      value={filters.start_date || ""}
-                      onChange={(e) =>
-                        setFilters((prev) => ({
-                          ...prev,
-                          start_date: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">إلى تاريخ</label>
-                    <Input
-                      type="date"
-                      value={filters.end_date || ""}
-                      onChange={(e) =>
-                        setFilters((prev) => ({
-                          ...prev,
-                          end_date: e.target.value,
-                        }))
-                      }
-                    />
-                  </div>
+                  <DateInput
+                    label="من تاريخ"
+                    value={filters.start_date}
+                    onChange={(date) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        start_date: date,
+                      }))
+                    }
+                    placeholder="اختر تاريخ البداية"
+                  />
+                  <DateInput
+                    label="إلى تاريخ"
+                    value={filters.end_date}
+                    onChange={(date) =>
+                      setFilters((prev) => ({
+                        ...prev,
+                        end_date: date,
+                      }))
+                    }
+                    placeholder="اختر تاريخ النهاية"
+                  />
 
                   {/* Severity */}
                   <div>

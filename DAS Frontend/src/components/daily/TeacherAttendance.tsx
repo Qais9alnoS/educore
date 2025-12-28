@@ -4,6 +4,7 @@ import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
+import { useToast } from '@/hooks/use-toast';
 import api from '@/services/api';
 
 interface TeacherScheduleEntry {
@@ -39,6 +40,7 @@ interface TeacherAttendanceProps {
 }
 
 export function TeacherAttendance({ academicYearId, sessionType, selectedDate }: TeacherAttendanceProps) {
+  const { toast } = useToast();
   const [teacherSchedules, setTeacherSchedules] = useState<TeacherDaySchedule[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(false);
@@ -136,8 +138,11 @@ export function TeacherAttendance({ academicYearId, sessionType, selectedDate }:
 
       setTeacherSchedules(teachers);
     } catch (error) {
-
-      alert('حدث خطأ أثناء جلب جداول الأساتذة');
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء جلب جداول الأساتذة',
+        variant: 'destructive',
+      });
     } finally {
       setLoading(false);
     }
@@ -182,10 +187,16 @@ export function TeacherAttendance({ academicYearId, sessionType, selectedDate }:
         records: attendanceData
       });
 
-      alert('✅ تم حفظ حضور الأساتذة بنجاح');
+      toast({
+        title: '✅ نجح',
+        description: 'تم حفظ حضور الأساتذة بنجاح',
+      });
     } catch (error) {
-
-      alert('❌ حدث خطأ أثناء حفظ حضور الأساتذة');
+      toast({
+        title: '❌ خطأ',
+        description: 'حدث خطأ أثناء حفظ حضور الأساتذة',
+        variant: 'destructive',
+      });
     } finally {
       setSaving(false);
     }

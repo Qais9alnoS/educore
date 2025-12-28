@@ -127,10 +127,6 @@ export const AddFinanceCardModal: React.FC<AddFinanceCardModalProps> = ({
             />
           </div>
 
-          <div className="p-3 bg-blue-50 rounded-lg border border-blue-200 text-sm text-gray-700">
-            <strong>ملاحظة:</strong> بعد إنشاء الكارد، يمكنك إضافة المدخولات والمصروفات من خلال الضغط عليه.
-          </div>
-
           <div className="flex gap-2">
             <Button
               onClick={handleSubmit}

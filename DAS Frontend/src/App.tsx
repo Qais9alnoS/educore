@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate, useLocation } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { ThemeProvider } from 'next-themes';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -10,6 +10,7 @@ import { ProjectProvider } from '@/contexts/ProjectContext';
 import { DesktopLayout } from '@/components/layout/DesktopLayout';
 import { SplashScreen } from '@/components/SplashScreen';
 import { FirstRunSetup } from '@/components/FirstRunSetup';
+import CustomTitleBar from '@/components/layout/CustomTitleBar';
 import { AcademicYearManagementPage, DashboardPage, StudentPersonalInfoPage, StudentAcademicInfoPage, SchoolInfoManagementPage, ActivitiesManagementPage, AddEditGradePage, TeacherManagementPage, ScheduleManagementPage, UserManagementPage } from '@/pages';
 import LoginPage from '@/pages/LoginPage';
 import NotFound from '@/pages/NotFound';
@@ -446,8 +447,16 @@ const AppContent = () => {
     };
   }, []);
 
+  // Show splash screen with minimal title bar (only nav buttons)
   if (showSplash) {
-    return <SplashScreen onComplete={handleSplashComplete} />;
+    return (
+      <>
+        <CustomTitleBar mode="splash" />
+        <div className="pt-12">
+          <SplashScreen onComplete={handleSplashComplete} />
+        </div>
+      </>
+    );
   }
 
   return (
@@ -456,18 +465,31 @@ const AppContent = () => {
         <AuthProvider>
           <ProjectProvider>
             <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <div className="app-container bg-background text-foreground font-ios">
-                <Routes>
-                  <Route path="/login" element={<LoginPage />} />
-                  <Route path="/*" element={<ProtectedApp />} />
-                </Routes>
-                <Toaster />
-              </div>
+              <TitleBarWithRouting />
             </Router>
           </ProjectProvider>
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
+  );
+};
+
+// Component to handle title bar mode based on current route
+const TitleBarWithRouting = () => {
+  const location = useLocation();
+  const isLoginPage = location.pathname === '/login' || location.pathname === '/';
+  
+  return (
+    <>
+      <CustomTitleBar mode={isLoginPage ? 'login' : 'full'} />
+      <div className="app-container bg-background text-foreground font-ios pt-12">
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/*" element={<ProtectedApp />} />
+        </Routes>
+        <Toaster />
+      </div>
+    </>
   );
 };
 

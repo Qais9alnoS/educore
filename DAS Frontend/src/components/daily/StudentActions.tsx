@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Textarea } from '../ui/textarea';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
+import { ConfirmationDialog } from '../ui/confirmation-dialog';
+import { useToast } from '@/hooks/use-toast';
 import api from '@/services/api';
 
 interface Student {
@@ -61,6 +63,7 @@ const ACTION_TYPES = {
 };
 
 export function StudentActions({ academicYearId, sessionType, selectedDate }: StudentActionsProps) {
+  const { toast } = useToast();
   const [classes, setClasses] = useState<any[]>([]);
   const [selectedGradeLevel, setSelectedGradeLevel] = useState<string>('');
   const [selectedClassId, setSelectedClassId] = useState<number | null>(null);
@@ -81,9 +84,12 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
   const [showWhatsAppDialog, setShowWhatsAppDialog] = useState(false);
   const [whatsappMessage, setWhatsappMessage] = useState('');
   const [whatsappLink, setWhatsappLink] = useState('');
+  const [groupLink, setGroupLink] = useState('');
   
   const [todayActions, setTodayActions] = useState<StudentAction[]>([]);
   const [editingAction, setEditingAction] = useState<StudentAction | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [actionToDelete, setActionToDelete] = useState<number | null>(null);
 
   useEffect(() => {
     fetchClasses();
@@ -145,7 +151,12 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
       setStudents(response.data as Student[]);
     } catch (error) {
       console.error('Error fetching students:', error);
-      alert('حدث خطأ أثناء جلب بيانات الطلاب');
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء جلب بيانات الطلاب',
+        variant: 'destructive',
+        duration: 5000
+      });
     }
   };
 
@@ -174,13 +185,23 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
 
   const handleSaveAction = async () => {
     if (!selectedStudent || !actionType || !description) {
-      alert('يرجى ملء جميع الحقول المطلوبة');
+      toast({
+        title: 'حقل مطلوب',
+        description: 'يرجى ملء جميع الحقول المطلوبة',
+        variant: 'destructive',
+        duration: 5000
+      });
       return;
     }
 
     // التحقق من المادة إذا كانت مطلوبة
     if (requiresSubject() && !selectedSubjectId) {
-      alert('يرجى اختيار المادة لهذا النوع من الإجراءات');
+      toast({
+        title: 'حقل مطلوب',
+        description: 'يرجى اختيار المادة لهذا النوع من الإجراءات',
+        variant: 'destructive',
+        duration: 5000
+      });
       return;
     }
 
@@ -189,7 +210,12 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
       const gradeNum = parseFloat(grade);
       const maxGradeNum = parseFloat(maxGrade);
       if (gradeNum > maxGradeNum) {
-        alert('العلامة لا يمكن أن تكون أعلى من العلامة الكاملة');
+        toast({
+          title: 'خطأ في العلامة',
+          description: 'العلامة لا يمكن أن تكون أعلى من العلامة الكاملة',
+          variant: 'destructive',
+          duration: 5000
+        });
         return;
       }
     }
@@ -207,13 +233,22 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
         notes
       });
 
-      alert('تم حفظ الإجراء بنجاح');
+      toast({
+        title: 'تم بنجاح',
+        description: 'تم حفظ الإجراء بنجاح',
+        duration: 3000
+      });
       setShowActionDialog(false);
       resetActionForm();
       fetchTodayActions(); // تحديث قائمة الإجراءات
     } catch (error) {
       console.error('Error saving action:', error);
-      alert('حدث خطأ أثناء حفظ الإجراء');
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء حفظ الإجراء',
+        variant: 'destructive',
+        duration: 5000
+      });
     }
   };
 
@@ -230,16 +265,33 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
     }
   };
 
-  const handleDeleteAction = async (actionId: number) => {
-    if (!confirm('هل أنت متأكد من حذف هذا الإجراء؟')) return;
-    
+  const handleDeleteAction = (actionId: number) => {
+    setActionToDelete(actionId);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteAction = async () => {
+    if (actionToDelete === null) return;
+
     try {
-      await api.delete(`/daily/actions/students/${actionId}`);
-      alert('تم حذف الإجراء بنجاح');
+      await api.delete(`/daily/actions/students/${actionToDelete}`);
+      toast({
+        title: 'تم بنجاح',
+        description: 'تم حذف الإجراء بنجاح',
+        duration: 3000
+      });
       fetchTodayActions();
     } catch (error) {
       console.error('Error deleting action:', error);
-      alert('حدث خطأ أثناء حذف الإجراء');
+      toast({
+          title: 'خطأ',
+          description: 'حدث خطأ أثناء حذف الإجراء',
+          variant: 'destructive',
+          duration: 5000
+        });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setActionToDelete(null);
     }
   };
 
@@ -257,12 +309,22 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
 
   const handleUpdateAction = async () => {
     if (!editingAction || !actionType || !description) {
-      alert('يرجى ملء جميع الحقول المطلوبة');
+      toast({
+        title: 'حقل مطلوب',
+        description: 'يرجى ملء جميع الحقول المطلوبة',
+        variant: 'destructive',
+        duration: 5000
+      });
       return;
     }
 
     if (requiresSubject() && !selectedSubjectId) {
-      alert('يرجى اختيار المادة لهذا النوع من الإجراءات');
+      toast({
+        title: 'حقل مطلوب',
+        description: 'يرجى اختيار المادة لهذا النوع من الإجراءات',
+        variant: 'destructive',
+        duration: 5000
+      });
       return;
     }
 
@@ -271,7 +333,12 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
       const gradeNum = parseFloat(grade);
       const maxGradeNum = parseFloat(maxGrade);
       if (gradeNum > maxGradeNum) {
-        alert('العلامة لا يمكن أن تكون أعلى من العلامة الكاملة');
+        toast({
+          title: 'خطأ في العلامة',
+          description: 'العلامة لا يمكن أن تكون أعلى من العلامة الكاملة',
+          variant: 'destructive',
+          duration: 5000
+        });
         return;
       }
     }
@@ -286,20 +353,33 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
         notes
       });
 
-      alert('تم تحديث الإجراء بنجاح');
+      toast({
+        title: 'تم بنجاح',
+        description: 'تم تحديث الإجراء بنجاح',
+        duration: 3000
+      });
       setShowActionDialog(false);
       setEditingAction(null);
       resetActionForm();
       fetchTodayActions();
     } catch (error) {
       console.error('Error updating action:', error);
-      alert('حدث خطأ أثناء تحديث الإجراء');
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء تحديث الإجراء',
+        variant: 'destructive',
+        duration: 5000
+      });
     }
   };
 
   const handleGenerateWhatsAppMessage = async () => {
     if (!selectedGradeLevel || !selectedClassId || !selectedSection) {
-      alert('يرجى اختيار المرحلة والصف والشعبة أولاً');
+      toast({
+        title: 'خطأ',
+        description: 'يرجى اختيار المرحلة والصف والشعبة أولاً',
+        variant: 'destructive'
+      });
       return;
     }
 
@@ -321,13 +401,21 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
       setShowWhatsAppDialog(true);
     } catch (error) {
       console.error('Error generating WhatsApp message:', error);
-      alert('حدث خطأ أثناء توليد الرسالة');
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء توليد الرسالة',
+        variant: 'destructive'
+      });
     }
   };
 
   const handleSendToWhatsApp = async () => {
     if (!whatsappLink) {
-      alert('يرجى إدخال رابط المجموعة أولاً');
+      toast({
+        title: 'خطأ',
+        description: 'يرجى إدخال رابط المجموعة أولاً',
+        variant: 'destructive'
+      });
       return;
     }
 
@@ -350,13 +438,19 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
     if (whatsappLink.includes('chat.whatsapp.com/')) {
       // رابط مجموعة - نسخ الرسالة وفتح المجموعة
       navigator.clipboard.writeText(whatsappMessage).then(() => {
-        alert('تم نسخ الرسالة! الآن افتح مجموعة الواتساب والصقها.');
+        toast({
+          title: 'تم النسخ',
+          description: 'تم نسخ الرسالة! سيتم فتح مجموعة الواتساب الآن',
+        });
         setTimeout(() => {
           window.open(whatsappLink, '_blank');
         }, 500);
       }).catch(() => {
         window.open(whatsappLink, '_blank');
-        alert('افتح المجموعة وانسخ الرسالة من النافذة السابقة');
+        toast({
+          title: 'معلومة',
+          description: 'افتح المجموعة وانسخ الرسالة من النافذة السابقة',
+        });
       });
     }
     // تنسيق wa.me مع رقم هاتف
@@ -702,7 +796,11 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
                   <Button
                     onClick={async () => {
                       if (!whatsappLink) {
-                        alert('يرجى إدخال رابط المجموعة أولاً');
+                        toast({
+                          title: 'خطأ',
+                          description: 'يرجى إدخال رابط المجموعة أولاً',
+                          variant: 'destructive'
+                        });
                         return;
                       }
                       try {
@@ -712,10 +810,16 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
                           academic_year_id: academicYearId,
                           group_link: whatsappLink
                         });
-                        alert('تم حفظ رابط المجموعة بنجاح');
+                        toast({
+                          title: 'نجح',
+                          description: 'تم حفظ رابط المجموعة بنجاح'
+                        });
                       } catch (error) {
-                        console.error('Error saving WhatsApp link:', error);
-                        alert('حدث خطأ أثناء حفظ الرابط');
+                        toast({
+                          title: 'خطأ',
+                          description: 'حدث خطأ أثناء حفظ الرابط',
+                          variant: 'destructive'
+                        });
                       }
                     }}
                     variant="outline"
@@ -747,6 +851,18 @@ export function StudentActions({ academicYearId, sessionType, selectedDate }: St
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Delete Action Confirmation Dialog */}
+        <ConfirmationDialog
+          open={deleteConfirmOpen}
+          onOpenChange={setDeleteConfirmOpen}
+          title="حذف الإجراء"
+          description="هل أنت متأكد من حذف هذا الإجراء؟"
+          confirmText="حذف"
+          cancelText="إلغاء"
+          variant="destructive"
+          onConfirm={confirmDeleteAction}
+        />
       </CardContent>
     </Card>
   );

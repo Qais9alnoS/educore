@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DateInput } from '@/components/ui/date-input';
 import {
     User,
     Phone,
@@ -299,12 +300,11 @@ export const TeacherAddDialog: React.FC<TeacherAddDialogProps> = ({
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="birth_date">تاريخ الميلاد</Label>
-                                <Input
-                                    id="birth_date"
-                                    type="date"
+                                <DateInput
+                                    label="تاريخ الميلاد"
                                     value={formData.birth_date}
-                                    onChange={(e) => setFormData({ ...formData, birth_date: e.target.value })}
+                                    onChange={(date) => setFormData({ ...formData, birth_date: date })}
+                                    placeholder="اختر تاريخ الميلاد"
                                 />
                             </div>
                         </div>
@@ -564,21 +564,18 @@ export const TeacherAddDialog: React.FC<TeacherAddDialogProps> = ({
 
                             <div className="grid grid-cols-2 gap-3">
                                 <div className="space-y-2">
-                                    <Label className="text-sm">تاريخ البداية *</Label>
-                                    <Input
-                                        type="date"
+                                    <DateInput
+                                        label="تاريخ البداية *"
                                         value={newExperience.start_date}
-                                        onChange={(e) => setNewExperience({ ...newExperience, start_date: e.target.value })}
-                                        className="text-sm"
+                                        onChange={(date) => setNewExperience({ ...newExperience, start_date: date })}
+                                        placeholder="اختر تاريخ البداية"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label className="text-sm">تاريخ النهاية</Label>
-                                    <Input
-                                        type="date"
+                                    <DateInput
+                                        label="تاريخ النهاية"
                                         value={newExperience.end_date}
-                                        onChange={(e) => setNewExperience({ ...newExperience, end_date: e.target.value })}
-                                        className="text-sm"
+                                        onChange={(date) => setNewExperience({ ...newExperience, end_date: date })}
                                         placeholder="اتركه فارغاً إذا مستمر"
                                     />
                                 </div>

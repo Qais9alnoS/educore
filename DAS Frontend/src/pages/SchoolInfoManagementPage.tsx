@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Plus, Users, BookOpen, GraduationCap, Layers, AlertTriangle, Edit, Trash2 } from 'lucide-react';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,6 +21,10 @@ const SchoolInfoManagementPage = () => {
   const [teacherAssignments, setTeacherAssignments] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [hasDefaultClasses, setHasDefaultClasses] = useState(false);
+  
+  // Confirmation dialog states
+  const [showCreateDefaultClassesConfirm, setShowCreateDefaultClassesConfirm] = useState(false);
+  const [deleteClassInfo, setDeleteClassInfo] = useState<{id: number, name: string} | null>(null);
 
   // Determine session type based on user role
   const getUserSessionType = (): SessionType | undefined => {
@@ -135,9 +140,14 @@ const SchoolInfoManagementPage = () => {
 
   const handleCreateDefaultClasses = async () => {
     if (!selectedAcademicYear) return;
-
-    // Confirm action
-    if (!confirm('هل أنت متأكد من إنشاء جميع الصفوف الافتراضية (12 صفًا مع موادهم)؟')) {
+    
+    // Show confirmation dialog
+    setShowCreateDefaultClassesConfirm(true);
+  };
+  
+  const confirmCreateDefaultClasses = async () => {
+    if (!selectedAcademicYear) {
+      setShowCreateDefaultClassesConfirm(false);
       return;
     }
 
@@ -200,7 +210,6 @@ const SchoolInfoManagementPage = () => {
       // Reload data
       loadData();
     } catch (error: any) {
-
       toast({
         title: 'خطأ',
         description: error.response?.data?.detail || error.message || 'فشل في إنشاء الصفوف الافتراضية',
@@ -208,14 +217,18 @@ const SchoolInfoManagementPage = () => {
       });
     } finally {
       setLoading(false);
+      setShowCreateDefaultClassesConfirm(false);
     }
   };
 
-  const handleDeleteClass = async (classId: number, className: string) => {
-    // Confirm deletion
-    if (!confirm(`هل أنت متأكد من حذف الصف "${className}"؟\n\nتحذير: سيتم حذف جميع المواد والمعلومات المرتبطة بهذا الصف.`)) {
-      return;
-    }
+  const handleDeleteClass = (classId: number, className: string) => {
+    // Show confirmation dialog
+    setDeleteClassInfo({ id: classId, name: className });
+  };
+  
+  const confirmDeleteClass = async () => {
+    if (!deleteClassInfo) return;
+    const { id: classId } = deleteClassInfo;
 
     try {
       setLoading(true);
@@ -230,7 +243,6 @@ const SchoolInfoManagementPage = () => {
       // Reload data
       loadData();
     } catch (error: any) {
-
       toast({
         title: 'خطأ',
         description: error.response?.data?.detail || error.message || 'فشل في حذف الصف',
@@ -238,6 +250,7 @@ const SchoolInfoManagementPage = () => {
       });
     } finally {
       setLoading(false);
+      setDeleteClassInfo(null);
     }
   };
 
@@ -474,6 +487,30 @@ const SchoolInfoManagementPage = () => {
           </>
         )}
       </div>
+      
+      {/* Create Default Classes Confirmation Dialog */}
+      <ConfirmationDialog
+        open={showCreateDefaultClassesConfirm}
+        onOpenChange={setShowCreateDefaultClassesConfirm}
+        title="تأكيد إنشاء الصفوف الافتراضية"
+        description="هل أنت متأكد من إنشاء جميع الصفوف الافتراضية (12 صفًا مع موادهم)؟"
+        confirmText="نعم، أنشئ الصفوف"
+        cancelText="إلغاء"
+        onConfirm={confirmCreateDefaultClasses}
+        variant="default"
+      />
+      
+      {/* Delete Class Confirmation Dialog */}
+      <ConfirmationDialog
+        open={!!deleteClassInfo}
+        onOpenChange={(open) => !open && setDeleteClassInfo(null)}
+        title={`حذف الصف ${deleteClassInfo?.name || ''}`}
+        description={`هل أنت متأكد من حذف الصف "${deleteClassInfo?.name || ''}"؟\n\nتحذير: سيتم حذف جميع المواد والمعلومات المرتبطة بهذا الصف.`}
+        confirmText="نعم، احذف"
+        cancelText="إلغاء"
+        onConfirm={confirmDeleteClass}
+        variant="destructive"
+      />
     </div>
   );
 };

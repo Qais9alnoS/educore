@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { SegmentedControl } from '@/components/ui/segmented-control';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DateInput } from '@/components/ui/date-input';
 import { BalanceHistoryModal } from './BalanceHistoryModal';
 import {
   Save,
@@ -292,14 +293,12 @@ export const StudentFinanceDetailModal: React.FC<StudentFinanceDetailModalProps>
                           placeholder="0.00"
                         />
                       </div>
-                      <div>
-                        <Label>تاريخ التسديد</Label>
-                        <Input
-                          type="date"
-                          value={paymentDate}
-                          onChange={(e) => setPaymentDate(e.target.value)}
-                        />
-                      </div>
+                      <DateInput
+                        label="تاريخ التسديد"
+                        value={paymentDate}
+                        onChange={(date) => setPaymentDate(date)}
+                        placeholder="اختر التاريخ"
+                      />
                       <div>
                         <Label>رقم أمر القبض</Label>
                         <Input

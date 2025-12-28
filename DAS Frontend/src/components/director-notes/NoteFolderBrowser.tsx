@@ -1,12 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   Folder, FileText, Plus, MoreVertical, Home, ChevronRight,
-  ArrowLeft, Trash2, Edit2, Search, Palette
+  ArrowLeft, Trash2, Edit2, Search
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -49,8 +50,33 @@ const NoteFolderBrowser: React.FC = () => {
 
   const [items, setItems] = useState<FolderItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentFolderId, setCurrentFolderId] = useState<number | null>(null);
-  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>([]);
+
+  // Initialize folder context from navigation state (Universal Search, Recent Folders, etc.)
+  const locationState = location.state as { folderId?: number; openFolderId?: number; folderData?: any } | null;
+  const initialFolderId = locationState?.folderId ?? locationState?.openFolderId ?? null;
+
+  // Build initial breadcrumbs from navigation state if available.
+  // Supports both single-level (folder only) and two-level (parent > folder) chains.
+  const initialBreadcrumbs: BreadcrumbItem[] = (() => {
+    if (!initialFolderId || !locationState?.folderData?.title) {
+      return [];
+    }
+
+    const parentFolderId = locationState.folderData.parentFolderId as number | null | undefined;
+    const parentFolderTitle = locationState.folderData.parentFolderTitle as string | null | undefined;
+
+    if (parentFolderId && parentFolderTitle) {
+      return [
+        { id: parentFolderId, name: parentFolderTitle },
+        { id: initialFolderId, name: locationState.folderData.title },
+      ];
+    }
+
+    return [{ id: initialFolderId, name: locationState.folderData.title }];
+  })();
+
+  const [currentFolderId, setCurrentFolderId] = useState<number | null>(initialFolderId);
+  const [breadcrumbs, setBreadcrumbs] = useState<BreadcrumbItem[]>(initialBreadcrumbs);
   const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
   const [showNewFileDialog, setShowNewFileDialog] = useState(false);
@@ -58,7 +84,8 @@ const NoteFolderBrowser: React.FC = () => {
   const [showRenameDialog, setShowRenameDialog] = useState(false);
   const [renameItemId, setRenameItemId] = useState<number | null>(null);
   const [renameValue, setRenameValue] = useState('');
-  const navigatedWithFolderId = useRef(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState<{ id: number; isFolder: boolean } | null>(null);
 
   const academicYearId = parseInt(localStorage.getItem('selected_academic_year_id') || '0');
 
@@ -69,34 +96,30 @@ const NoteFolderBrowser: React.FC = () => {
     'educational_admin': 'الأمور التعليمية والإدارية'
   };
 
-  // Handle navigation state for opening a specific folder
   useEffect(() => {
     const state = location.state as { folderId?: number; openFolderId?: number; folderData?: any } | null;
     const targetFolderId = state?.folderId || state?.openFolderId;
     const folderData = state?.folderData;
 
-    if (targetFolderId && targetFolderId !== currentFolderId) {
-      navigatedWithFolderId.current = true;
+    if (targetFolderId) {
       setCurrentFolderId(targetFolderId);
 
       // Build breadcrumb trail if we have folder data
       if (folderData?.title) {
-        setBreadcrumbs([{ id: targetFolderId, name: folderData.title }]);
+        const parentFolderId = folderData.parentFolderId as number | null | undefined;
+        const parentFolderTitle = folderData.parentFolderTitle as string | null | undefined;
+
+        if (parentFolderId && parentFolderTitle) {
+          setBreadcrumbs([
+            { id: parentFolderId, name: parentFolderTitle },
+            { id: targetFolderId, name: folderData.title },
+          ]);
+        } else {
+          setBreadcrumbs([{ id: targetFolderId, name: folderData.title }]);
+        }
       }
     }
-  }, [location.key]);
-
-  // Reset to root when category changes (unless navigating with specific state)
-  useEffect(() => {
-    // Don't reset if we just navigated with a folderId
-    if (navigatedWithFolderId.current) {
-      navigatedWithFolderId.current = false;
-      return;
-    }
-
-    setCurrentFolderId(null);
-    setBreadcrumbs([]);
-  }, [category]);
+  }, []);
 
   useEffect(() => {
     if (category && academicYearId) {
@@ -231,23 +254,37 @@ const NoteFolderBrowser: React.FC = () => {
     }
   };
 
-  const handleDeleteItem = async (itemId: number, isFolder: boolean) => {
-    if (!confirm(`هل أنت متأكد من حذف هذا ${isFolder ? 'المجلد' : 'الملف'}؟`)) {
-      return;
-    }
+  const handleDeleteItem = (itemId: number, isFolder: boolean) => {
+    setItemToDelete({ id: itemId, isFolder });
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteItem = async () => {
+    if (!itemToDelete) return;
 
     try {
-      if (isFolder) {
-        await directorApi.deleteFolder(itemId);
+      if (itemToDelete.isFolder) {
+        await directorApi.deleteFolder(itemToDelete.id);
       } else {
-        await directorApi.deleteFile(itemId);
+        await directorApi.deleteFile(itemToDelete.id);
       }
 
       toast({
         title: 'نجاح',
-        description: `تم حذف ${isFolder ? 'المجلد' : 'الملف'} بنجاح`,
+        description: `تم حذف ${itemToDelete.isFolder ? 'المجلد' : 'الملف'} بنجاح`,
       });
       loadFolderContents();
+    } catch (error) {
+      toast({
+        title: 'خطأ',
+        description: `فشل حذف ${itemToDelete.isFolder ? 'المجلد' : 'الملف'}`,
+        variant: 'destructive',
+      });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setItemToDelete(null);
+    }
+  };
     } catch (error) {
 
       toast({
@@ -429,16 +466,6 @@ const NoteFolderBrowser: React.FC = () => {
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={(e) => {
                         e.stopPropagation();
-                        toast({
-                          title: 'قريباً',
-                          description: 'ميزة تغيير الأيقونة ستكون متاحة قريباً',
-                        });
-                      }}>
-                        <Palette className="h-4 w-4 ml-2" />
-                        تغيير الأيقونة
-                      </DropdownMenuItem>
-                      <DropdownMenuItem onClick={(e) => {
-                        e.stopPropagation();
                         handleDeleteItem(item.id, item.is_folder);
                       }}>
                         <Trash2 className="h-4 w-4 ml-2" />
@@ -542,6 +569,18 @@ const NoteFolderBrowser: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Item Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title={`حذف ${itemToDelete?.isFolder ? 'المجلد' : 'الملف'}`}
+        description={`هل أنت متأكد من حذف هذا ${itemToDelete?.isFolder ? 'المجلد' : 'الملف'}؟`}
+        confirmText="حذف"
+        cancelText="إلغاء"
+        variant="destructive"
+        onConfirm={confirmDeleteItem}
+      />
     </div>
   );
 };

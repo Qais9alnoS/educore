@@ -7,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateInput } from '@/components/ui/date-input';
+import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
   Dialog,
   DialogContent,
@@ -31,6 +33,8 @@ const RewardsManager: React.FC = () => {
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRecipient, setSelectedRecipient] = useState<{ id: number; name: string } | null>(null);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [rewardToDelete, setRewardToDelete] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -238,20 +242,27 @@ const RewardsManager: React.FC = () => {
     setShowDialog(true);
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('هل أنت متأكد من حذف هذه المكافأة؟')) return;
+  const handleDelete = (id: number) => {
+    setRewardToDelete(id);
+    setDeleteConfirmOpen(true);
+  };
+
+  const confirmDeleteReward = async () => {
+    if (rewardToDelete === null) return;
 
     try {
-      await directorApi.deleteReward(id);
+      await directorApi.deleteReward(rewardToDelete);
       toast({ title: 'نجاح', description: 'تم حذف المكافأة' });
       fetchRewards();
     } catch (error) {
-
       toast({
         title: 'خطأ',
         description: 'فشل في حذف المكافأة',
         variant: 'destructive',
       });
+    } finally {
+      setDeleteConfirmOpen(false);
+      setRewardToDelete(null);
     }
   };
 
@@ -480,12 +491,11 @@ const RewardsManager: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="reward_date">التاريخ</Label>
-                <Input
-                  id="reward_date"
-                  type="date"
+                <DateInput
+                  label="التاريخ"
                   value={formData.reward_date}
-                  onChange={(e) => setFormData({ ...formData, reward_date: e.target.value })}
+                  onChange={(date) => setFormData({ ...formData, reward_date: date })}
+                  placeholder="اختر التاريخ"
                 />
               </div>
               <div className="space-y-2">
@@ -518,6 +528,18 @@ const RewardsManager: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Reward Confirmation Dialog */}
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="حذف المكافأة"
+        description="هل أنت متأكد من حذف هذه المكافأة؟"
+        confirmText="حذف"
+        cancelText="إلغاء"
+        variant="destructive"
+        onConfirm={confirmDeleteReward}
+      />
     </div>
   );
 };

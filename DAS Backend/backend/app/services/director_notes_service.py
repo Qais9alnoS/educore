@@ -13,7 +13,7 @@ from sqlalchemy import and_, or_, func
 
 from ..database import SessionLocal
 from ..models.director import DirectorNote
-from ..config import settings
+from ..config import settings, BASE_DIR
 
 class DirectorNotesService:
     """Service for managing director notes files and folders"""
@@ -27,8 +27,8 @@ class DirectorNotesService:
     }
     
     def __init__(self):
-        # Base directory for all director notes
-        self.base_dir = Path("director_notes")
+        # Base directory for all director notes (relative to exe/script location)
+        self.base_dir = BASE_DIR / "director_notes"
         self.base_dir.mkdir(exist_ok=True)
         
         # Maximum file size (5MB)

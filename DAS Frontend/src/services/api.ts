@@ -979,8 +979,15 @@ export const financeManagerApi = {
   },
 
   // Analytics - Transactions by Period
-  getTransactionsByPeriod: async (academic_year_id: number, period_type: 'weekly' | 'monthly' | 'yearly') => {
-    return apiClient.get<{periods: string[], income_data: number[], expense_data: number[]}>(`/finance/analytics/transactions-by-period?academic_year_id=${academic_year_id}&period_type=${period_type}`);
+  // If academic_year_id is provided, data is scoped to that year.
+  // If omitted/null, backend is expected to return data across all academic years
+  // (used for the yearly "سنوات" view in the finance dashboard).
+  getTransactionsByPeriod: async (academic_year_id: number | null | undefined, period_type: 'weekly' | 'monthly' | 'yearly') => {
+    const params = new URLSearchParams({ period_type });
+    if (academic_year_id) {
+      params.append('academic_year_id', academic_year_id.toString());
+    }
+    return apiClient.get<{periods: string[], income_data: number[], expense_data: number[]}>(`/finance/analytics/transactions-by-period?${params.toString()}`);
   },
 
   // Analytics - Income Completion Stats

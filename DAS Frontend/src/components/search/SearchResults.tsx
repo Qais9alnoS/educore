@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import {
   GraduationCap, Users, BookOpen, Clipboard,
   Sparkles, DollarSign, Calendar, FileText,
-  File, ChevronRight, CreditCard
+  File, ChevronRight, CreditCard, Folder
 } from 'lucide-react';
 import { UniversalSearchResult, GroupedSearchResults, CATEGORY_NAMES } from '@/types/search';
 
@@ -127,16 +127,27 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
 
             {/* Category Results */}
             <div className="divide-y divide-[hsl(var(--border))]">
-              {categoryResults.slice(0, visibleCounts[category] || INITIAL_DISPLAY).map((result) => (
+              {categoryResults.slice(0, visibleCounts[category] || INITIAL_DISPLAY).map((result) => {
+                const isClickable = (result as any).is_clickable !== false;
+                
+                return (
                 <div
                   key={`${result.type}-${result.id}`}
-                  onClick={() => onResultClick(result)}
-                  className="px-4 py-3 hover:bg-[hsl(var(--muted))]/40 cursor-pointer transition-colors group"
+                  onClick={() => isClickable && onResultClick(result)}
+                  className={`px-4 py-3 transition-colors ${
+                    isClickable 
+                      ? 'hover:bg-[hsl(var(--muted))]/40 cursor-pointer group' 
+                      : 'opacity-60 cursor-not-allowed'
+                  }`}
                 >
                   <div className="flex items-start gap-3">
                     {/* Icon */}
                     <div className="flex-shrink-0 mt-0.5">
-                      {TYPE_ICONS[result.type] || TYPE_ICONS['page']}
+                      {result.type === 'director_note' && (result as any).data?.is_folder ? (
+                        <Folder className="h-5 w-5 text-red-500" />
+                      ) : (
+                        TYPE_ICONS[result.type] || TYPE_ICONS['page']
+                      )}
                     </div>
 
                     {/* Content */}
@@ -188,7 +199,8 @@ export const SearchResults: React.FC<SearchResultsProps> = ({
                     </div>
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
         );

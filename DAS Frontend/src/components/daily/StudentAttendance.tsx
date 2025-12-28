@@ -6,6 +6,7 @@ import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select';
 import { Badge } from '../ui/badge';
+import { toast } from '@/components/ui/use-toast';
 import api from '@/services/api';
 
 interface Student {
@@ -157,9 +158,14 @@ export function StudentAttendance({ academicYearId, sessionType, selectedDate }:
       
       let errorMessage = 'حدث خطأ أثناء جلب بيانات الطلاب';
       if (error instanceof Error) {
-        errorMessage += `\n\nالتفاصيل: ${error.message}`;
+        errorMessage = `${errorMessage}: ${error.message}`;
       }
-      alert(errorMessage);
+      toast({
+        title: 'خطأ',
+        description: errorMessage,
+        variant: 'destructive',
+        duration: 5000
+      });
     } finally {
       setLoading(false);
     }
@@ -189,10 +195,19 @@ export function StudentAttendance({ academicYearId, sessionType, selectedDate }:
         absent_student_ids: Array.from(absentStudentIds)
       });
       
-      alert('✅ تم حفظ الحضور بنجاح');
+      toast({
+        title: 'تم بنجاح',
+        description: 'تم حفظ الحضور بنجاح',
+        duration: 3000
+      });
     } catch (error) {
       console.error('Error saving attendance:', error);
-      alert('❌ حدث خطأ أثناء حفظ الحضور');
+      toast({
+        title: 'خطأ',
+        description: 'حدث خطأ أثناء حفظ الحضور',
+        variant: 'destructive',
+        duration: 5000
+      });
     } finally {
       setSaving(false);
     }

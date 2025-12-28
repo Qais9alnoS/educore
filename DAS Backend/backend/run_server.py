@@ -2,6 +2,16 @@
 
 import sys
 import os
+import io
+
+# Set UTF-8 encoding for stdout and stderr (critical for PyInstaller .exe)
+if sys.stdout.encoding != 'utf-8':
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+if sys.stderr.encoding != 'utf-8':
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
+# Set environment variable for any child processes
+os.environ['PYTHONIOENCODING'] = 'utf-8'
 
 # Add the current directory to Python path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))

@@ -149,6 +149,26 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, sidebarWidth }) => {
 
   // Navigation items with role-based access control and grouping
   const allNavItems = [
+    // Finance Manager specific sections (visible only for finance role)
+    {
+      name: 'لوحة التحكم',
+      href: '/dashboard',
+      icon: LayoutDashboard,
+      allowedRoles: ['finance'],
+    },
+    {
+      name: 'الصندوق',
+      href: '/finance?tab=treasury',
+      icon: Wallet,
+      allowedRoles: ['finance'],
+    },
+    {
+      name: 'الطلاب',
+      href: '/finance?tab=students',
+      icon: Users,
+      allowedRoles: ['finance'],
+    },
+
     // المجموعة 1: لوحة التحكم والصفحة اليومية وملاحظات المدير
     {
       name: 'لوحة التحكم',
@@ -250,7 +270,7 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, sidebarWidth }) => {
       name: 'الصندوق',
       href: '/finance?tab=treasury',
       icon: Wallet,
-      allowedRoles: ['finance', 'director'],
+      allowedRoles: ['director'],
     },
     {
       name: 'إدارة الجداول',
@@ -271,27 +291,13 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, sidebarWidth }) => {
       name: 'السنوات الدراسية',
       href: '/academic-years',
       icon: Calendar,
-      allowedRoles: ['director', 'morning_school', 'evening_school'],
+      allowedRoles: ['director', 'morning_school', 'evening_school', 'finance'],
     },
     {
       name: 'إدارة تسجيل الدخول',
       href: '/user-management',
       icon: Key,
       allowedRoles: ['director'],
-    },
-
-    // Finance Manager specific sections
-    {
-      name: 'الطلاب',
-      href: '/finance?tab=students',
-      icon: Users,
-      allowedRoles: ['finance'],
-    },
-    {
-      name: 'السنة الدراسية',
-      href: '/finance?tab=year',
-      icon: Calendar,
-      allowedRoles: ['finance'],
     },
   ];
 

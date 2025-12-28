@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   ArrowLeft, Search, Filter, FileText, Award, Heart, Target,
-  Briefcase, BookOpen, GraduationCap, Calendar, X, SlidersHorizontal
+  Briefcase, BookOpen, GraduationCap, Calendar, X, SlidersHorizontal, Folder
 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -24,19 +24,21 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 import { Label } from '@/components/ui/label';
+import { DateInput } from '@/components/ui/date-input';
 import { directorApi } from '@/services/api';
 import { useToast } from '@/components/ui/use-toast';
 
 interface SearchResult {
   id: number;
   title: string;
-  type: 'note' | 'reward' | 'assistance';
+  type: 'note' | 'reward' | 'assistance' | 'folder';
   category?: string;
   date: string;
   snippet?: string;
   amount?: number;
   recipient_name?: string;
   organization?: string;
+  parent_folder_id?: number | null;
 }
 
 const DirectorNotesSearchPage: React.FC = () => {
@@ -84,6 +86,33 @@ const DirectorNotesSearchPage: React.FC = () => {
     try {
       const allResults: SearchResult[] = [];
 
+      // Search folders if type is 'all' or 'folder'
+      if (selectedType === 'all' || selectedType === 'folder') {
+        const categories = selectedCategory !== 'all' ? [selectedCategory] : ['goals', 'projects', 'blogs', 'educational_admin'];
+        
+        for (const category of categories) {
+          try {
+            const foldersResponse = await directorApi.listFolderContents(academicYearId, category);
+            if (foldersResponse.success && foldersResponse.data) {
+              const foldersList = foldersResponse.data as any[];
+              const matchingFolders = foldersList
+                .filter((folder: any) => folder.is_folder && folder.name?.toLowerCase().includes(query.toLowerCase()))
+                .map((folder: any) => ({
+                  id: folder.id,
+                  title: folder.name,
+                  type: 'folder' as const,
+                  category: category,
+                  date: folder.created_at || new Date().toISOString(),
+                  parent_folder_id: folder.parent_folder_id,
+                }));
+              allResults.push(...matchingFolders);
+            }
+          } catch (e) {
+            // Continue if folder search fails for a category
+          }
+        }
+      }
+
       // Search markdown notes if type is 'all' or 'note'
       if (selectedType === 'all' || selectedType === 'note') {
         const notesResponse = await directorApi.searchNotes(
@@ -95,14 +124,17 @@ const DirectorNotesSearchPage: React.FC = () => {
         if (notesResponse.success && notesResponse.data) {
           const notesData = notesResponse.data as any;
           const notesList = notesData.results || notesData.data?.results || [];
-          const notes = notesList.map((note: any) => ({
-            id: note.id,
-            title: note.title,
-            type: 'note' as const,
-            category: note.category,
-            date: note.note_date || note.updated_at,
-            snippet: note.snippet,
-          }));
+          // Filter out folders from notes (only include actual notes)
+          const notes = notesList
+            .filter((note: any) => !note.is_folder)
+            .map((note: any) => ({
+              id: note.id,
+              title: note.title,
+              type: 'note' as const,
+              category: note.category,
+              date: note.note_date || note.updated_at,
+              snippet: note.snippet,
+            }));
           allResults.push(...notes);
         }
       }
@@ -188,7 +220,10 @@ const DirectorNotesSearchPage: React.FC = () => {
   };
 
   const handleResultClick = (result: SearchResult) => {
-    if (result.type === 'note') {
+    if (result.type === 'folder') {
+      // Navigate to the folder browser with the folder's category and folder ID
+      navigate(`/director/notes/browse/${result.category}?folder=${result.id}`);
+    } else if (result.type === 'note') {
       navigate(`/director/notes/edit/${result.id}`);
     } else if (result.type === 'reward') {
       navigate('/director/notes/rewards');
@@ -199,6 +234,8 @@ const DirectorNotesSearchPage: React.FC = () => {
 
   const getTypeIcon = (type: string) => {
     switch (type) {
+      case 'folder':
+        return <Folder className="h-5 w-5 text-amber-500" />;
       case 'note':
         return <FileText className="h-5 w-5 text-primary" />;
       case 'reward':
@@ -237,6 +274,7 @@ const DirectorNotesSearchPage: React.FC = () => {
 
   const getTypeLabel = (type: string) => {
     const labels: Record<string, string> = {
+      folder: 'مجلد',
       note: 'ملاحظة',
       reward: 'مكافأة',
       assistance: 'مساعدة',
@@ -303,14 +341,8 @@ const DirectorNotesSearchPage: React.FC = () => {
                   )}
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" dir="rtl">
-                <SheetHeader>
-                  <SheetTitle>تصفية النتائج</SheetTitle>
-                  <SheetDescription>
-                    اختر الفلاتر لتضييق نطاق البحث
-                  </SheetDescription>
-                </SheetHeader>
-                <div className="space-y-6 mt-6">
+              <SheetContent side="left" dir="rtl" className="[&>button]:hidden">
+                <div className="space-y-6 mt-2">
                   {/* Type Filter */}
                   <div className="space-y-2">
                     <Label>نوع السجل</Label>
@@ -320,6 +352,7 @@ const DirectorNotesSearchPage: React.FC = () => {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="all">الكل</SelectItem>
+                        <SelectItem value="folder">مجلدات</SelectItem>
                         <SelectItem value="note">ملاحظات</SelectItem>
                         <SelectItem value="reward">مكافآت</SelectItem>
                         <SelectItem value="assistance">مساعدات</SelectItem>
@@ -327,8 +360,8 @@ const DirectorNotesSearchPage: React.FC = () => {
                     </Select>
                   </div>
 
-                  {/* Category Filter (only for notes) */}
-                  {(selectedType === 'all' || selectedType === 'note') && (
+                  {/* Category Filter (for notes and folders) */}
+                  {(selectedType === 'all' || selectedType === 'note' || selectedType === 'folder') && (
                     <div className="space-y-2">
                       <Label>الفئة</Label>
                       <Select value={selectedCategory} onValueChange={setSelectedCategory}>
@@ -347,23 +380,19 @@ const DirectorNotesSearchPage: React.FC = () => {
                   )}
 
                   {/* Date Range Filter */}
-                  <div className="space-y-2">
-                    <Label>من تاريخ</Label>
-                    <Input
-                      type="date"
-                      value={dateFrom}
-                      onChange={(e) => setDateFrom(e.target.value)}
-                    />
-                  </div>
+                  <DateInput
+                    label="من تاريخ"
+                    value={dateFrom}
+                    onChange={(date) => setDateFrom(date)}
+                    placeholder="اختر تاريخ البداية"
+                  />
 
-                  <div className="space-y-2">
-                    <Label>إلى تاريخ</Label>
-                    <Input
-                      type="date"
-                      value={dateTo}
-                      onChange={(e) => setDateTo(e.target.value)}
-                    />
-                  </div>
+                  <DateInput
+                    label="إلى تاريخ"
+                    value={dateTo}
+                    onChange={(date) => setDateTo(date)}
+                    placeholder="اختر تاريخ النهاية"
+                  />
 
                   {/* Action Buttons */}
                   <div className="flex gap-2 pt-4">

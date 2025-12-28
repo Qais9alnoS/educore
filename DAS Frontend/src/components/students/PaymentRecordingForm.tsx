@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DateInput } from '@/components/ui/date-input';
 import { StudentPayment } from '@/types/school';
 import { studentsApi } from '@/services/api';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +27,8 @@ export const PaymentRecordingForm = ({ studentId, academicYearId, onSuccess, onC
     const {
         register,
         handleSubmit,
+        watch,
+        setValue,
         formState: { errors }
     } = useForm<StudentPayment>({
         defaultValues: {
@@ -108,11 +111,11 @@ export const PaymentRecordingForm = ({ studentId, academicYearId, onSuccess, onC
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="payment_date">تاريخ الدفع *</Label>
-                            <Input
-                                id="payment_date"
-                                type="date"
-                                {...register('payment_date', { required: 'تاريخ الدفع مطلوب' })}
+                            <DateInput
+                                label="تاريخ الدفع *"
+                                value={watch('payment_date') || ''}
+                                onChange={(date) => setValue('payment_date', date, { shouldValidate: true })}
+                                placeholder="اختر تاريخ الدفع"
                             />
                             {errors.payment_date && (
                                 <Alert variant="destructive">

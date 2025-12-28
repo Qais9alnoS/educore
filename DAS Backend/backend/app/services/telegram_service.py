@@ -2,6 +2,7 @@ import asyncio
 import aiohttp
 import json
 import logging
+import html
 from datetime import datetime
 from typing import Optional, Dict, Any, List
 from enum import Enum
@@ -258,9 +259,9 @@ class TelegramNotificationService:
                                request_info: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Send detailed error report to Telegram"""
         message = f"<b>❌ تقرير خطأ</b>\n\n"
-        message += f"<b>نوع الخطأ:</b> <code>{error_type}</code>\n"
-        message += f"<b>الرسالة:</b> <code>{error_message[:200]}</code>\n"
-        message += f"<b>الموقع:</b> <code>{error_location}</code>\n"
+        message += f"<b>نوع الخطأ:</b> <code>{html.escape(error_type)}</code>\n"
+        message += f"<b>الرسالة:</b> <code>{html.escape(error_message[:200])}</code>\n"
+        message += f"<b>الموقع:</b> <code>{html.escape(error_location)}</code>\n"
         message += f"<b>الوقت:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
         if error_details:
@@ -268,18 +269,18 @@ class TelegramNotificationService:
             for key, value in error_details.items():
                 if isinstance(value, (dict, list)):
                     value = json.dumps(value, ensure_ascii=False, indent=2)[:500]
-                message += f"  • <b>{key}:</b> <code>{str(value)[:200]}</code>\n"
+                message += f"  • <b>{html.escape(str(key))}:</b> <code>{html.escape(str(value)[:200])}</code>\n"
             message += "\n"
         
         if stack_trace:
             # Truncate stack trace if too long (Telegram has 4096 char limit)
             stack_trace_short = stack_trace[:1500] + "..." if len(stack_trace) > 1500 else stack_trace
-            message += f"<b>Stack Trace:</b>\n<pre>{stack_trace_short}</pre>\n\n"
+            message += f"<b>Stack Trace:</b>\n<pre>{html.escape(stack_trace_short)}</pre>\n\n"
         
         if user_info:
             message += f"<b>معلومات المستخدم:</b>\n"
             for key, value in user_info.items():
-                message += f"  • <b>{key}:</b> <code>{str(value)}</code>\n"
+                message += f"  • <b>{html.escape(str(key))}:</b> <code>{html.escape(str(value))}</code>\n"
             message += "\n"
         
         if request_info:
@@ -290,9 +291,9 @@ class TelegramNotificationService:
                     important_headers = ["user-agent", "referer", "origin"]
                     filtered_headers = {k: v for k, v in value.items() if k.lower() in important_headers}
                     if filtered_headers:
-                        message += f"  • <b>{key}:</b> <code>{json.dumps(filtered_headers, ensure_ascii=False)[:200]}</code>\n"
+                        message += f"  • <b>{html.escape(str(key))}:</b> <code>{html.escape(json.dumps(filtered_headers, ensure_ascii=False)[:200])}</code>\n"
                 else:
-                    message += f"  • <b>{key}:</b> <code>{str(value)[:200]}</code>\n"
+                    message += f"  • <b>{html.escape(str(key))}:</b> <code>{html.escape(str(value)[:200])}</code>\n"
         
         return await self.send_message(message, MessageType.ERROR)
     
@@ -300,9 +301,9 @@ class TelegramNotificationService:
                                  warning_details: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
         """Send detailed warning report to Telegram"""
         message = f"<b>⚠️ تقرير تحذير</b>\n\n"
-        message += f"<b>نوع التحذير:</b> <code>{warning_type}</code>\n"
-        message += f"<b>الرسالة:</b> <code>{warning_message[:200]}</code>\n"
-        message += f"<b>الموقع:</b> <code>{warning_location}</code>\n"
+        message += f"<b>نوع التحذير:</b> <code>{html.escape(warning_type)}</code>\n"
+        message += f"<b>الرسالة:</b> <code>{html.escape(warning_message[:200])}</code>\n"
+        message += f"<b>الموقع:</b> <code>{html.escape(warning_location)}</code>\n"
         message += f"<b>الوقت:</b> {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
         if warning_details:
@@ -310,7 +311,7 @@ class TelegramNotificationService:
             for key, value in warning_details.items():
                 if isinstance(value, (dict, list)):
                     value = json.dumps(value, ensure_ascii=False, indent=2)[:500]
-                message += f"  • <b>{key}:</b> <code>{str(value)[:200]}</code>\n"
+                message += f"  • <b>{html.escape(str(key))}:</b> <code>{html.escape(str(value)[:200])}</code>\n"
         
         return await self.send_message(message, MessageType.WARNING)
     

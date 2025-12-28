@@ -12,7 +12,7 @@ class HistoryLogCreate(BaseModel):
     action_category: str = Field(..., description="Category: morning, evening, finance, director, system, activity")
     entity_type: str = Field(..., description="Entity type: student, class, transaction, etc.")
     entity_id: Optional[int] = Field(None, description="ID of the affected entity")
-    entity_name: str = Field(..., description="Display name of the entity")
+    entity_name: Optional[str] = Field(None, description="Display name of the entity")
     description: str = Field(..., description="Human-readable description in Arabic")
     academic_year_id: Optional[int] = None
     session_type: Optional[str] = Field(None, description="morning, evening, both, or null")
@@ -29,7 +29,7 @@ class HistoryLogResponse(BaseModel):
     action_category: str
     entity_type: str
     entity_id: Optional[int]
-    entity_name: str
+    entity_name: Optional[str]
     user_id: Optional[int]
     user_name: Optional[str]
     user_role: Optional[str]
@@ -89,7 +89,7 @@ class HistoryDetailResponse(BaseModel):
     action_category: str
     entity_type: str
     entity_id: Optional[int]
-    entity_name: str
+    entity_name: Optional[str]
     user_name: Optional[str]
     user_role: Optional[str]
     description: str
