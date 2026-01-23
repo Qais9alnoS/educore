@@ -35,15 +35,13 @@ jobs:
         working-directory: DAS Backend/backend
         run: |
           python -m venv venv
-          .\venv\Scripts\Activate.ps1
-          pip install -r requirements.txt
-          pip install pyinstaller
+          .\venv\Scripts\pip install -r requirements.txt
+          .\venv\Scripts\pip install pyinstaller
 
       - name: Build Backend
         working-directory: DAS Backend/backend
         run: |
-          .\venv\Scripts\Activate.ps1
-          python -m PyInstaller das_backend.spec --clean --noconfirm
+          .\venv\Scripts\python -m PyInstaller das_backend.spec --clean --noconfirm
 
       - name: Upload Backend Artifact
         uses: actions/upload-artifact@v4
