@@ -26,12 +26,12 @@ try {
 Write-Host "[3/3] Building executable..." -ForegroundColor Yellow
 python -m PyInstaller das_backend.spec --clean --noconfirm
 
-if (Test-Path "dist\school-management-backend-x86_64-pc-windows-msvc.exe") {
+if (Test-Path "dist\school-management-backend-x86_64-pc-windows-msvc\school-management-backend-x86_64-pc-windows-msvc.exe") {
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Green
     Write-Host "✓ Build successful!" -ForegroundColor Green
     Write-Host "========================================" -ForegroundColor Green
-    Write-Host "Executable location: dist\school-management-backend-x86_64-pc-windows-msvc.exe"
+    Write-Host "Executable location: dist\school-management-backend-x86_64-pc-windows-msvc\school-management-backend-x86_64-pc-windows-msvc.exe"
     Write-Host ""
 } else {
     Write-Host ""

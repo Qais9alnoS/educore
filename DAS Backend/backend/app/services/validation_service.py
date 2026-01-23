@@ -410,6 +410,64 @@ class ValidationService:
                         f"الحل: إما تقليل أوقات فراغ {teacher.full_name} أو جعل معلمين آخرين متاحين في نفس الفترات"
                     )
         
+        # NEW CRITICAL CHECK: Day-level contention analysis
+        # Check if teachers with limited day availability will block each other
+        teacher_day_availability = {}  # teacher_id -> set of available days
+        for teacher_id in teacher_info_map.keys():
+            teacher_day_availability[teacher_id] = set()
+            for (day, period), teacher_list in slot_distribution.items():
+                if teacher_id in teacher_list:
+                    teacher_day_availability[teacher_id].add(day)
+        
+        # Check for day-level conflicts
+        for teacher_id, teacher_cache in teacher_availability_cache.items():
+            teacher = teacher_info_map[teacher_id]
+            total_required = teacher_cache["total_required"]
+            available_days = teacher_day_availability.get(teacher_id, set())
+            
+            if not available_days:
+                continue
+            
+            # Calculate how many periods per day this teacher needs
+            periods_per_day_needed = total_required / len(available_days) if available_days else 0
+            
+            # Check if other teachers compete for the same days
+            for other_id, other_cache in teacher_availability_cache.items():
+                if other_id == teacher_id:
+                    continue
+                
+                other_teacher = teacher_info_map[other_id]
+                other_days = teacher_day_availability.get(other_id, set())
+                other_required = other_cache["total_required"]
+                
+                # Check for day overlap
+                overlapping_days = available_days & other_days
+                if not overlapping_days:
+                    continue
+                
+                # If both teachers can ONLY use overlapping days (no unique days)
+                my_unique_days = available_days - other_days
+                other_unique_days = other_days - available_days
+                
+                # Critical case: teachers with NO buffer competing for same days
+                if len(my_unique_days) == 0 and len(other_unique_days) == 0:
+                    # Both teachers can ONLY use the same days - high contention
+                    total_demand = total_required + other_required
+                    total_capacity = len(overlapping_days) * 6  # 6 periods per day
+                    
+                    if total_demand > total_capacity * 0.9:  # More than 90% capacity
+                        has_guaranteed_empties = True
+                        errors.append(
+                            f"⚠️ تضارب حرج: المعلمان {teacher.full_name} و {other_teacher.full_name} "
+                            f"يتنافسان على نفس الأيام ({len(overlapping_days)} أيام) "
+                            f"ويحتاجان معاً {total_demand} حصة من أصل {total_capacity} متاحة. "
+                            f"هذا سيؤدي حتماً إلى فشل الجدولة!"
+                        )
+                        suggestions.append(
+                            f"الحل: يجب أن يضيف أحد المعلمين ({teacher.full_name} أو {other_teacher.full_name}) "
+                            f"أوقات فراغ في أيام إضافية لتقليل التنافس"
+                        )
+        
         if single_teacher_slots > 0 and multiple_teacher_slots > single_teacher_slots:
             coverage_warnings.append(
                 f"تحذير: يوجد {multiple_teacher_slots} فترة مشتركة (عدة معلمين متاحين) مقابل {single_teacher_slots} فترة فردية. "
@@ -439,6 +497,65 @@ class ValidationService:
         # Add coverage warnings to main warnings list
         warnings.extend(coverage_warnings)
         
+        # CRITICAL: Simulate placement to detect blocking scenarios
+        # Teachers with zero buffer (available == required) will block each other if they share slots
+        placement_blocking_detected = False
+        for teacher_id, teacher_cache in teacher_availability_cache.items():
+            teacher = teacher_info_map[teacher_id]
+            total_required = teacher_cache["total_required"]
+            available_slots = teacher_cache["available_slots"]
+            
+            # Only check teachers with ZERO buffer (critical constraint)
+            if available_slots != total_required:
+                continue
+            
+            # This teacher MUST use ALL their free slots
+            # Check if other teachers with zero buffer share ANY of their slots
+            for other_id, other_cache in teacher_availability_cache.items():
+                if other_id == teacher_id:
+                    continue
+                
+                other_teacher = teacher_info_map[other_id]
+                other_required = other_cache["total_required"]
+                other_available = other_cache["available_slots"]
+                
+                # Only check other teachers with zero buffer
+                if other_available != other_required:
+                    continue
+                
+                # Count shared slots between these two zero-buffer teachers
+                shared_slots = []
+                for (day, period), teacher_list in slot_distribution.items():
+                    if teacher_id in teacher_list and other_id in teacher_list:
+                        shared_slots.append((day, period))
+                
+                # If they share ANY slots, they will block each other
+                # because both MUST use all their slots, but can't use the same grid position
+                if len(shared_slots) > 0:
+                    placement_blocking_detected = True
+                    has_guaranteed_empties = True
+                    errors.append(
+                        f"⚠️ تعارض حتمي: المعلمان {teacher.full_name} و {other_teacher.full_name} "
+                        f"يتشاركان {len(shared_slots)} فترة مشتركة، لكن كلاهما يحتاج لاستخدام كل أوقات فراغه "
+                        f"({teacher.full_name}: {total_required} حصة من {available_slots} متاحة، "
+                        f"{other_teacher.full_name}: {other_required} حصة من {other_available} متاحة). "
+                        f"لا يمكن وضع كلا المعلمين في نفس الفترة - سيفشل الجدول حتماً!"
+                    )
+                    
+                    # Provide specific solution
+                    day_names_ar = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"]
+                    shared_examples = [f"{day_names_ar[d]} الحصة {p+1}" for d, p in shared_slots[:3]]
+                    errors.append(f"   الفترات المشتركة: {', '.join(shared_examples)}")
+                    
+                    suggestions.append(
+                        f"الحل: يجب أن يضيف أحد المعلمين ({teacher.full_name} أو {other_teacher.full_name}) "
+                        f"فترة فراغ إضافية واحدة على الأقل في يوم مختلف لإزالة التعارض"
+                    )
+                    break  # Only report once per teacher
+                
+                if placement_blocking_detected:
+                    break
+        
         # Determine if we can proceed
         can_proceed = (
             len(unassigned_subjects) == 0 and 
@@ -446,7 +563,8 @@ class ValidationService:
             len(periods_without_teachers) == 0 and  # Must have teachers for all periods
             len(teachers_without_freetime) == 0 and  # All teachers must have free time configured
             not has_guaranteed_empties and  # CRITICAL: Block if guaranteed empty slots detected
-            not has_critical_coverage_issue  # NEW: Block if coverage pattern is known to cause empty periods
+            not has_critical_coverage_issue and  # NEW: Block if coverage pattern is known to cause empty periods
+            not placement_blocking_detected  # CRITICAL: Block if zero-buffer teachers will block each other
         )
         is_valid = can_proceed and len(insufficient_availability) == 0
         

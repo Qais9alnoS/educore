@@ -535,7 +535,7 @@ export const TeacherScheduleTab: React.FC<TeacherScheduleTabProps> = ({ teacher,
                         </div>
                     </CardHeader>
                     <CardContent>
-                        {freeTimeSlots.filter(s => s.is_free).length > 0 ? (
+                        {freeTimeSlots.filter(s => s.is_free).length > 0 || occupiedSlots.length > 0 ? (
                             <div dir="rtl">
                                 <FreeTimeSlotsCalendar
                                     slots={freeTimeSlots}

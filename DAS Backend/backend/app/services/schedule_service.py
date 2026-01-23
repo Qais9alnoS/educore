@@ -606,17 +606,161 @@ class ScheduleGenerationService:
         # Track which periods each subject has been placed at (for variety scoring)
         subject_period_usage = {subject.id: set() for subject in subjects}
         
-        # Sort subjects by scarcity of available slots (hardest to place first)
-        # This ensures subjects with limited teacher availability get priority
+        # ========== CRITICAL FIX: TEACHER-SCARCITY-BASED SORTING ==========
+        # Teachers with fewer free slots MUST be scheduled first to ensure their
+        # limited availability is respected. Otherwise, more flexible teachers
+        # might "steal" the scarce slots.
+        
+        # Step 1: Calculate each teacher's total available slots
+        teacher_available_slots = {}  # teacher_id -> count of free slots
+        for teacher_id in set(subject_teacher_map.values()):
+            if teacher_id:
+                available_count = sum(1 for (t_id, d, p) in teacher_availability if t_id == teacher_id)
+                teacher_available_slots[teacher_id] = available_count
+        
+        # Step 2: Calculate each teacher's required slots (total weekly hours of their subjects)
+        teacher_required_slots = {}  # teacher_id -> total required periods
+        for subject in subjects:
+            teacher_id = subject_teacher_map.get(subject.id)
+            if teacher_id:
+                weekly_hours = getattr(subject, 'weekly_hours', 1) or 1
+                teacher_required_slots[teacher_id] = teacher_required_slots.get(teacher_id, 0) + weekly_hours
+        
+        # Step 2b: Calculate UNIQUE slots - slots that ONLY this teacher can use
+        # This is critical for teachers like سماح موسى who only have periods 5-6
+        teacher_unique_slots = {}  # teacher_id -> count of slots no other teacher has
+        teacher_shared_slots = {}  # teacher_id -> count of slots shared with others
+        all_teacher_ids = set(subject_teacher_map.values())
+        
+        for teacher_id in all_teacher_ids:
+            if not teacher_id:
+                continue
+            unique_count = 0
+            shared_count = 0
+            # Get all slots for this teacher
+            my_slots = [(d, p) for (t_id, d, p) in teacher_availability if t_id == teacher_id]
+            for day, period in my_slots:
+                # Check if any OTHER teacher also has this slot
+                other_has_slot = any(
+                    (other_id, day, period) in teacher_availability 
+                    for other_id in all_teacher_ids 
+                    if other_id and other_id != teacher_id
+                )
+                if other_has_slot:
+                    shared_count += 1
+                else:
+                    unique_count += 1
+            teacher_unique_slots[teacher_id] = unique_count
+            teacher_shared_slots[teacher_id] = shared_count
+        
+        # Step 3: Calculate "effective scarcity" considering slot overlap
+        # A teacher with all shared slots is MORE constrained than one with unique slots
+        # because their slots can be "stolen" by other teachers
+        teacher_scarcity_ratio = {}
+        for teacher_id in teacher_available_slots:
+            available = teacher_available_slots.get(teacher_id, 0)
+            required = teacher_required_slots.get(teacher_id, 1)
+            unique = teacher_unique_slots.get(teacher_id, 0)
+            shared = teacher_shared_slots.get(teacher_id, 0)
+            
+            # Base ratio
+            base_ratio = available / max(required, 1)
+            
+            # Adjust for slot sharing: if all slots are shared, teacher is more constrained
+            # because other teachers might take their slots
+            # unique_ratio: 0 = all shared (bad), 1 = all unique (good)
+            unique_ratio = unique / max(available, 1) if available > 0 else 0
+            
+            # Effective ratio: penalize teachers with mostly shared slots
+            # A teacher with 10 shared slots is effectively more constrained than
+            # a teacher with 10 unique slots
+            effective_ratio = base_ratio * (0.5 + 0.5 * unique_ratio)
+            
+            teacher_scarcity_ratio[teacher_id] = effective_ratio
+        
+        # Print teacher scarcity analysis for debugging
+        print(f"\n🎯 Teacher Scarcity Analysis (CRITICAL for correct scheduling):")
+        for teacher_id, ratio in sorted(teacher_scarcity_ratio.items(), key=lambda x: x[1]):
+            teacher = teacher_map.get(teacher_id)
+            teacher_name = teacher.full_name if teacher else f"Teacher {teacher_id}"
+            available = teacher_available_slots.get(teacher_id, 0)
+            required = teacher_required_slots.get(teacher_id, 0)
+            unique = teacher_unique_slots.get(teacher_id, 0)
+            shared = teacher_shared_slots.get(teacher_id, 0)
+            status = "⚠️ CRITICAL" if ratio < 1.0 else ("🔶 TIGHT" if ratio <= 1.5 else "✅ FLEXIBLE")
+            print(f"  - {teacher_name}: {available} slots ({unique} unique, {shared} shared) / {required} required = {ratio:.2f} {status}")
+        
+        # Step 4: Calculate day-level constraints for each teacher
+        # This helps identify teachers who can ONLY use certain days
+        teacher_available_days = {}  # teacher_id -> set of days they can use
+        for teacher_id in all_teacher_ids:
+            if not teacher_id:
+                continue
+            days = set(d for (t_id, d, p) in teacher_availability if t_id == teacher_id)
+            teacher_available_days[teacher_id] = days
+        
+        # Calculate "day exclusivity" - teachers with fewer day options are more constrained
+        # even if they have many slots on those days
+        teacher_day_scarcity = {}
+        for teacher_id in all_teacher_ids:
+            if not teacher_id:
+                continue
+            num_days = len(teacher_available_days.get(teacher_id, set()))
+            required = teacher_required_slots.get(teacher_id, 1)
+            # How many periods per day does this teacher need on average?
+            periods_per_day_needed = required / max(num_days, 1)
+            # If they need >4 periods per day, they're very constrained
+            teacher_day_scarcity[teacher_id] = periods_per_day_needed
+        
+        # Step 5: Sort subjects by COMBINED scarcity (slot ratio + day constraints)
         def get_subject_placement_difficulty(subj):
             teacher_id = subject_teacher_map.get(subj.id)
             if not teacher_id:
-                return 999  # No teacher = hardest
-            available_count = sum(1 for (t_id, d, p) in teacher_availability if t_id == teacher_id)
-            return -available_count  # Negative so fewer slots = higher priority
+                return (999, 999, 0)  # No teacher = process last
+            ratio = teacher_scarcity_ratio.get(teacher_id, 999)
+            day_scarcity = teacher_day_scarcity.get(teacher_id, 0)
+            # Return tuple: (scarcity_ratio, -day_scarcity, -weekly_hours)
+            # This ensures: 
+            # 1) Most constrained by slot ratio first
+            # 2) Among similar ratios, those needing more periods/day first
+            # 3) Within same teacher, more hours first
+            weekly_hours = getattr(subj, 'weekly_hours', 1) or 1
+            return (ratio, -day_scarcity, -weekly_hours)
         
-        # Sort subject_slots by placement difficulty (hardest first)
+        # Sort subject_slots by placement difficulty (most constrained teachers first)
         subject_slots.sort(key=get_subject_placement_difficulty)
+        
+        print(f"\n📋 Subject placement order (constrained teachers first):")
+        seen_teachers = set()
+        for subj in subject_slots:
+            teacher_id = subject_teacher_map.get(subj.id)
+            if teacher_id and teacher_id not in seen_teachers:
+                teacher = teacher_map.get(teacher_id)
+                ratio = teacher_scarcity_ratio.get(teacher_id, 0)
+                print(f"  - {subj.subject_name} (teacher ratio: {ratio:.2f})")
+                seen_teachers.add(teacher_id)
+        
+        # ========== CRITICAL: DAY-LEVEL DEMAND CALCULATION ==========
+        # Calculate expected demand per day to identify oversubscribed days
+        # Teachers should prefer days with lower demand to balance the load
+        day_demand = {d: 0.0 for d in range(num_days)}
+        for teacher_id in all_teacher_ids:
+            if not teacher_id or teacher_id not in teacher_required_slots:
+                continue
+            teacher_day_set = teacher_available_days.get(teacher_id, set())
+            if not teacher_day_set:
+                continue
+            required = teacher_required_slots.get(teacher_id, 0)
+            slots_per_day = required / len(teacher_day_set)
+            for day in teacher_day_set:
+                day_demand[day] += slots_per_day
+        
+        day_names_debug = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"]
+        print(f"\n📊 Day-level demand analysis:")
+        for day in range(num_days):
+            demand = day_demand[day]
+            status = "⚠️ OVERSUBSCRIBED" if demand > periods_per_day else "✅ OK"
+            print(f"  - {day_names_debug[day]}: demand {demand:.1f}/6 {status}")
         
         # Track failed placements for retry
         failed_placements = []
@@ -740,9 +884,82 @@ class ScheduleGenerationService:
                     if (subject_id, day, period) in required_slots:
                         score -= 100  # Strong bonus - user wants this subject here
                     
+                    # ========== CRITICAL: SLOT EXCLUSIVITY SCORING ==========
+                    # Check if this slot is needed by OTHER teachers who have LIMITED options
+                    # Teachers with more day options should avoid slots that teachers with fewer options need
+                    my_ratio = teacher_scarcity_ratio.get(teacher_id, 999)
+                    my_days = teacher_available_days.get(teacher_id, set())
+                    
+                    # Count how many OTHER teachers need this exact slot
+                    constrained_teachers_needing_slot = 0
+                    for other_teacher_id in teacher_scarcity_ratio.keys():
+                        if other_teacher_id == teacher_id:
+                            continue
+                        # Check if this other teacher is available at this slot
+                        if (other_teacher_id, day, period) in teacher_availability:
+                            other_days = teacher_available_days.get(other_teacher_id, set())
+                            other_remaining = sum(1 for (t_id, d, p) in teacher_availability if t_id == other_teacher_id)
+                            other_required = teacher_required_slots.get(other_teacher_id, 0)
+                            
+                            # If other teacher has FEWER day options than me, I should avoid their days
+                            if len(other_days) < len(my_days):
+                                # Heavy penalty - leave this slot for the more constrained teacher
+                                score += 300
+                                constrained_teachers_needing_slot += 1
+                            # If other teacher has same days but tighter ratio
+                            elif teacher_scarcity_ratio.get(other_teacher_id, 999) < my_ratio:
+                                score += 150
+                                constrained_teachers_needing_slot += 1
+                    
+                    # ========== CRITICAL: DAY EXCLUSIVITY ==========
+                    # If I can use MANY days but another teacher can ONLY use THIS day,
+                    # I should strongly prefer my OTHER days to leave room for them
+                    for other_teacher_id in teacher_scarcity_ratio.keys():
+                        if other_teacher_id == teacher_id:
+                            continue
+                        other_days = teacher_available_days.get(other_teacher_id, set())
+                        
+                        # If other teacher can only use a subset of days that includes this day
+                        # and I have more options, avoid this day
+                        if day in other_days and len(my_days) > len(other_days):
+                            # Check if other teacher still needs slots
+                            other_remaining = sum(1 for (t_id, d, p) in teacher_availability if t_id == other_teacher_id)
+                            other_required = teacher_required_slots.get(other_teacher_id, 0)
+                            other_placed = sum(1 for d2 in range(num_days) for p2 in range(periods_per_day) 
+                                             if schedule_grid[d2][p2] is not None and schedule_grid[d2][p2][1] == other_teacher_id)
+                            other_still_needed = other_required - other_placed
+                            
+                            if other_still_needed > 0:
+                                # Calculate how critical this day is for the other teacher
+                                # If they have few slots left relative to what they need, it's critical
+                                slots_on_this_day = sum(1 for (t_id, d, p) in teacher_availability 
+                                                       if t_id == other_teacher_id and d == day)
+                                if slots_on_this_day > 0 and other_remaining <= other_still_needed + 3:
+                                    # This day is critical for the other teacher
+                                    score += 250
+                    
                     # 1. Scarcity bonus: Prefer slots where fewer teachers are available
                     scarcity_count = scarcity_matrix.get((day, period), 1)
                     score += scarcity_count * 5
+                    
+                    # 1b. DAY-LEVEL DEMAND SCORING: Prefer days with lower overall demand
+                    # This helps balance load across the week and avoid oversubscribed days
+                    # NOTE: Keep penalties light to avoid blocking valid placements
+                    current_day_demand = day_demand.get(day, 0)
+                    if current_day_demand > periods_per_day + 1:  # Only penalize if significantly over
+                        # This day is very oversubscribed - add light penalty
+                        oversubscription = current_day_demand - periods_per_day
+                        score += int(oversubscription * 10)  # Light penalty
+                    
+                    # Prefer days with lower demand (more room) - but keep it as a preference, not a blocker
+                    my_available_days = teacher_available_days.get(teacher_id, set())
+                    if my_available_days and len(my_available_days) > 1:  # Only if teacher has options
+                        min_demand_day = min(my_available_days, key=lambda d: day_demand.get(d, 0))
+                        min_demand = day_demand.get(min_demand_day, 0)
+                        # Add small penalty if this is not the least demanded day
+                        if day != min_demand_day and current_day_demand > min_demand + 0.5:
+                            demand_diff = current_day_demand - min_demand
+                            score += int(demand_diff * 5)  # Very light preference
                     
                     # 2. Even distribution across week: SOFT penalty for >2 periods per day
                     # This is a soft constraint - degrades gracefully if teacher only available on few days
@@ -892,25 +1109,91 @@ class ScheduleGenerationService:
                     'difference': placed - required
                 })
         
-        # If there are failed placements, try to place them in ANY remaining empty slot
-        # (relaxing teacher availability as a last resort)
+        # ========== CRITICAL FIX: NO FORCE-PLACEMENT THAT VIOLATES AVAILABILITY ==========
+        # If there are failed placements, we MUST NOT place them in slots where the teacher
+        # is not available. Instead, we try to find alternative solutions or raise an error.
         if failed_placements:
-            print(f"\n🔄 Attempting to place {len(failed_placements)} failed subjects in remaining slots...")
+            print(f"\n🔄 Attempting to place {len(failed_placements)} failed subjects (RESPECTING availability)...")
+            
             for subject in failed_placements:
-                # Find any empty slot
+                teacher_id = subject_teacher_map.get(subject.id)
+                teacher = teacher_map.get(teacher_id) if teacher_id else None
+                teacher_name = teacher.full_name if teacher else "Unknown"
+                
+                # Strategy 1: Try to find ANY slot where this teacher is still available
                 placed = False
                 for day in range(num_days):
                     if placed:
                         break
                     for period in range(periods_per_day):
                         if schedule_grid[day][period] is None:
-                            # Force-place with first available teacher for this subject
-                            fallback_teacher_id = subject_teacher_map.get(subject.id)
-                            schedule_grid[day][period] = (subject, fallback_teacher_id)
-                            subject_placed_total[subject.id] = subject_placed_total.get(subject.id, 0) + 1
-                            print(f"  ⚠️ Force-placed {subject.subject_name} at day {day+1} period {period+1}")
-                            placed = True
+                            # CRITICAL: Only place if teacher is ACTUALLY free at this slot
+                            if (teacher_id, day, period) in teacher_availability:
+                                schedule_grid[day][period] = (subject, teacher_id)
+                                subject_placed_total[subject.id] = subject_placed_total.get(subject.id, 0) + 1
+                                subject_counts_per_day[subject.id][day] += 1
+                                # Remove from availability
+                                del teacher_availability[(teacher_id, day, period)]
+                                print(f"  ✅ Placed {subject.subject_name} at day {day+1} period {period+1} (teacher available)")
+                                placed = True
+                                break
+                
+                if not placed:
+                    # Strategy 2: Check if we can swap with another subject whose teacher has more flexibility
+                    # Find subjects in the grid whose teachers have higher scarcity ratios
+                    swapped = False
+                    for day in range(num_days):
+                        if swapped:
                             break
+                        for period in range(periods_per_day):
+                            existing_entry = schedule_grid[day][period]
+                            if existing_entry is None:
+                                continue
+                            
+                            existing_subject, existing_teacher_id = existing_entry
+                            existing_ratio = teacher_scarcity_ratio.get(existing_teacher_id, 999)
+                            my_ratio = teacher_scarcity_ratio.get(teacher_id, 0)
+                            
+                            # Only swap if the existing teacher is MORE flexible than ours
+                            # AND our teacher is available at this slot
+                            # AND the existing teacher can be placed elsewhere
+                            if existing_ratio > my_ratio * 1.5 and (teacher_id, day, period) in teacher_availability:
+                                # Check if existing teacher has another available slot
+                                for alt_day in range(num_days):
+                                    if swapped:
+                                        break
+                                    for alt_period in range(periods_per_day):
+                                        if schedule_grid[alt_day][alt_period] is None:
+                                            if (existing_teacher_id, alt_day, alt_period) in teacher_availability:
+                                                # Perform the swap
+                                                # Move existing subject to alternative slot
+                                                schedule_grid[alt_day][alt_period] = existing_entry
+                                                # Place our subject in the freed slot
+                                                schedule_grid[day][period] = (subject, teacher_id)
+                                                subject_placed_total[subject.id] = subject_placed_total.get(subject.id, 0) + 1
+                                                
+                                                # Update availability
+                                                del teacher_availability[(teacher_id, day, period)]
+                                                del teacher_availability[(existing_teacher_id, alt_day, alt_period)]
+                                                
+                                                print(f"  🔄 Swapped: {subject.subject_name} took day {day+1} period {period+1}")
+                                                print(f"     {existing_subject.subject_name} moved to day {alt_day+1} period {alt_period+1}")
+                                                swapped = True
+                                                placed = True
+                                                break
+                
+                if not placed:
+                    # CRITICAL: Do NOT force-place. Report the error instead.
+                    print(f"  ❌ CANNOT place {subject.subject_name} - teacher {teacher_name} has NO available slots!")
+                    print(f"     Teacher's free slots have been exhausted. This is a scheduling impossibility.")
+                    # Add to placement errors for reporting
+                    placement_errors.append({
+                        'subject': subject.subject_name,
+                        'required': subject_required.get(subject.id, 1),
+                        'placed': subject_placed_total.get(subject.id, 0),
+                        'difference': subject_placed_total.get(subject.id, 0) - subject_required.get(subject.id, 1),
+                        'reason': f"Teacher {teacher_name} has no available free time slots"
+                    })
         
         # ========== PRINT CONSTRAINT STATISTICS ==========
         # This proves that constraints were actually applied, not just luck
