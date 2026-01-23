@@ -66,7 +66,14 @@ a = Analysis(
         'pytest',
         'coverage',
         'setuptools',
+        'tkinter',
+        'matplotlib',
+        'numpy',
+        'pandas',
     ],
+    module_collection_mode={
+        'app.services': 'py',  # Collect as source, don't analyze deeply
+    },
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
