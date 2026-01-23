@@ -285,15 +285,6 @@ const NoteFolderBrowser: React.FC = () => {
       setItemToDelete(null);
     }
   };
-    } catch (error) {
-
-      toast({
-        title: 'خطأ',
-        description: 'فشل في الحذف',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handleRenameClick = (item: FolderItem) => {
     setRenameItemId(item.id);
@@ -432,7 +423,7 @@ const NoteFolderBrowser: React.FC = () => {
           {items.map((item) => (
             <Card
               key={item.id}
-              className="cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-[1.02]"
+              className="cursor-pointer hover:shadow-sm transition-shadow duration-200"
               onClick={() => handleItemClick(item)}
             >
               <CardContent className="p-4">

@@ -1,2 +1,2 @@
-// Re-export the new WYSIWYG editor as MarkdownNoteEditor for backward compatibility
-export { default } from './WYSIWYGNoteEditor';
+// Re-export the enhanced editor as MarkdownNoteEditor for backward compatibility
+export { default } from './EnhancedNoteEditor';

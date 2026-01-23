@@ -383,7 +383,7 @@ export const AdvancedCalendar: React.FC<AdvancedCalendarProps> = ({
   return (
     <div
       className={cn(
-        "w-full max-w-sm p-4 rounded-2xl border border-border bg-card",
+        "w-full max-w-sm p-4 rounded-3xl border border-border bg-card",
         "shadow-lg space-y-4",
         className
       )}

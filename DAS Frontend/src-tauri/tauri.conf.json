@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
-  "productName": "DAS Management",
-  "version": "0.0.0",
+  "productName": "Educore",
+  "version": "1.0.0",
   "identifier": "com.dasmgmt.management",
   "build": {
     "devUrl": "http://localhost:3000",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "DAS Management",
+        "title": "Educore",
         "width": 1200,
         "height": 800,
         "minWidth": 800,
@@ -32,17 +32,21 @@
   "bundle": {
     "active": true,
     "targets": "msi",
-    "icon": [
-      "icons/icon.ico"
-    ],
-    "externalBin": [
-      "binaries/das-backend"
-    ],
+    "icon": ["icons/icon.ico"],
+    "externalBin": ["binaries/das-backend"],
     "resources": []
   },
   "plugins": {
     "shell": {
       "open": true
+    },
+    "updater": {
+      "active": true,
+      "endpoints": [
+        "https://github.com/Qais9alnoS/educore/releases/latest/download/latest.json"
+      ],
+      "dialog": true,
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDkyM0RGREFFMkM2MUJDMzMKUldRenZHRXNydjA5a2t1ekRHeVdDaE5yWEx1bHVXbWVONjZKREZZKytaZlp0R0Q4SVR6VVFCdncK"
     }
   }
 }

@@ -159,18 +159,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ open, onOpen
     }
   };
 
-  const formatDate = (dateString?: string) => {
-    if (!dateString) return 'غير متوفر';
-    const date = new Date(dateString);
-    return new Intl.DateTimeFormat('ar-SA', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    }).format(date);
-  };
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[600px]">
@@ -217,20 +205,6 @@ export const UserProfileModal: React.FC<UserProfileModalProps> = ({ open, onOpen
                       {authState.user?.is_active ? 'نشط' : 'معطل'}
                     </Badge>
                   </div>
-                </div>
-
-                {authState.user?.session_type && (
-                  <div className="space-y-1">
-                    <Label className="text-sm text-muted-foreground">نوع الفترة</Label>
-                    <p className="text-sm font-medium">
-                      {authState.user.session_type === 'morning' ? 'صباحية' : 'مسائية'}
-                    </p>
-                  </div>
-                )}
-
-                <div className="space-y-1">
-                  <Label className="text-sm text-muted-foreground">آخر تسجيل دخول</Label>
-                  <p className="text-sm font-medium">{formatDate(authState.user?.last_login)}</p>
                 </div>
               </div>
             </div>

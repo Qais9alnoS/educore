@@ -152,14 +152,6 @@ const AssistanceManager: React.FC = () => {
     }
   };
 
-      toast({
-        title: 'خطأ',
-        description: 'فشل في حذف المساعدة',
-        variant: 'destructive',
-      });
-    }
-  };
-
   const resetForm = () => {
     setFormData({
       title: '',

@@ -89,6 +89,12 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
   const [swappingCells, setSwappingCells] = useState<{cell1: string, cell2: string} | null>(null);
   const [localAssignments, setLocalAssignments] = useState<ScheduleAssignment[]>(assignments);
   const viewMode = 'detailed'; // Always use detailed view
+  
+  // Custom drag state for Tauri compatibility
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartPos, setDragStartPos] = useState<{x: number, y: number} | null>(null);
+  const [dragCurrentPos, setDragCurrentPos] = useState<{x: number, y: number} | null>(null);
+  const [dragThreshold] = useState(5); // pixels to move before drag starts
 
   // Sync local assignments with props
   useEffect(() => {
@@ -130,28 +136,76 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
     }
   };
 
-  // Drag and Drop Handlers
-  const handleDragStart = (e: React.DragEvent, assignment: ScheduleAssignment) => {
-    if (readOnly) return;
+  // Custom Mouse-based Drag Handlers for Tauri
+  const handleMouseDown = (e: React.MouseEvent, assignment: ScheduleAssignment) => {
+    if (readOnly || e.button !== 0) return; // Only left click
     
-    // Ensure dataTransfer is available (sometimes issues in certain environments)
-    if (e.dataTransfer) {
-      e.dataTransfer.effectAllowed = 'move';
-      try {
-        e.dataTransfer.setData('application/json', JSON.stringify(assignment));
-      } catch (err) {
-        // Fallback if setData fails
-        console.warn('Failed to set drag data:', err);
-      }
-    }
-    
+    e.preventDefault();
+    setDragStartPos({ x: e.clientX, y: e.clientY });
     setDraggedAssignment(assignment);
-    setSwapValidityCache(new Map()); // Clear cache when starting new drag
+    setSwapValidityCache(new Map());
   };
 
-  const handleDragOver = async (e: React.DragEvent, day: number, period: number) => {
-    e.preventDefault();
-    if (readOnly || !draggedAssignment) return;
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!draggedAssignment || !dragStartPos) return;
+
+    const deltaX = Math.abs(e.clientX - dragStartPos.x);
+    const deltaY = Math.abs(e.clientY - dragStartPos.y);
+
+    // Start dragging only after threshold
+    if (!isDragging && (deltaX > dragThreshold || deltaY > dragThreshold)) {
+      setIsDragging(true);
+    }
+
+    if (isDragging) {
+      setDragCurrentPos({ x: e.clientX, y: e.clientY });
+    }
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    setDragStartPos(null);
+    setDragCurrentPos(null);
+    setDraggedAssignment(null);
+    setDragOverCell(null);
+    setIsValidDrop(false);
+    setSwapValidityCache(new Map());
+  };
+
+  // Add global mouse event listeners
+  useEffect(() => {
+    if (draggedAssignment) {
+      const handleGlobalMouseMove = (e: MouseEvent) => {
+        if (!dragStartPos) return;
+
+        const deltaX = Math.abs(e.clientX - dragStartPos.x);
+        const deltaY = Math.abs(e.clientY - dragStartPos.y);
+
+        if (!isDragging && (deltaX > dragThreshold || deltaY > dragThreshold)) {
+          setIsDragging(true);
+        }
+
+        if (isDragging) {
+          setDragCurrentPos({ x: e.clientX, y: e.clientY });
+        }
+      };
+
+      const handleGlobalMouseUp = () => {
+        handleMouseUp();
+      };
+
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+
+      return () => {
+        document.removeEventListener('mousemove', handleGlobalMouseMove);
+        document.removeEventListener('mouseup', handleGlobalMouseUp);
+      };
+    }
+  }, [draggedAssignment, dragStartPos, isDragging, dragThreshold]);
+
+  const handleCellMouseEnter = async (day: number, period: number) => {
+    if (readOnly || !draggedAssignment || !isDragging) return;
 
     const key = `${day}-${period}`;
     const targetAssignment = gridMap.get(key);
@@ -160,7 +214,6 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
     if (!targetAssignment || draggedAssignment.id === targetAssignment.id) {
       setDragOverCell(key);
       setIsValidDrop(false);
-      e.dataTransfer.dropEffect = 'none';
       return;
     }
 
@@ -170,13 +223,12 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
       const isValid = swapValidityCache.get(cacheKey)!;
       setDragOverCell(key);
       setIsValidDrop(isValid);
-      e.dataTransfer.dropEffect = isValid ? 'move' : 'none';
       return;
     }
 
     // Set initial state while checking
     setDragOverCell(key);
-    setIsValidDrop(false); // Default to invalid until validated
+    setIsValidDrop(false);
 
     // Call the validation API to check if swap is allowed
     try {
@@ -185,22 +237,20 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
       const canSwap = result.success && result.data?.can_swap === true;
       setSwapValidityCache(prev => new Map(prev).set(cacheKey, canSwap));
       setIsValidDrop(canSwap);
-      e.dataTransfer.dropEffect = canSwap ? 'move' : 'none';
     } catch (error) {
-      // On error, default to allowing the swap (server will validate on drop)
       setSwapValidityCache(prev => new Map(prev).set(cacheKey, true));
       setIsValidDrop(true);
     }
   };
 
-  const handleDragLeave = () => {
+  const handleCellMouseLeave = () => {
+    if (!isDragging) return;
     setDragOverCell(null);
     setIsValidDrop(false);
   };
 
-  const handleDrop = async (e: React.DragEvent, day: number, period: number) => {
-    e.preventDefault();
-    if (readOnly || !draggedAssignment) return;
+  const handleCellMouseUp = async (day: number, period: number) => {
+    if (readOnly || !draggedAssignment || !isDragging) return;
 
     const key = `${day}-${period}`;
     const targetAssignment = gridMap.get(key);
@@ -212,26 +262,20 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
         description: 'لا يمكن التبديل مع خانة فارغة',
         variant: 'destructive'
       });
-      setDraggedAssignment(null);
-      setDragOverCell(null);
-      setIsValidDrop(false);
+      handleMouseUp();
       return;
     }
 
     // Don't swap with itself
     if (draggedAssignment.id === targetAssignment.id) {
-      setDraggedAssignment(null);
-      setDragOverCell(null);
-      setIsValidDrop(false);
+      handleMouseUp();
       return;
     }
 
-    // Check if this swap was validated as invalid - silently ignore the drop
+    // Check if this swap was validated as invalid
     const cacheKey = `${draggedAssignment.id}-${targetAssignment.id}`;
     if (swapValidityCache.has(cacheKey) && !swapValidityCache.get(cacheKey)) {
-      setDraggedAssignment(null);
-      setDragOverCell(null);
-      setIsValidDrop(false);
+      handleMouseUp();
       return;
     }
 
@@ -239,20 +283,18 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
     const draggedKey = `${draggedAssignment.day_of_week}-${draggedAssignment.period_number}`;
     const targetKey = key;
 
-    // Call swap API using schedulesApi
+    // Call swap API
     try {
       const { schedulesApi } = await import('@/services/api');
       const result = await schedulesApi.swap(draggedAssignment.id, targetAssignment.id);
 
       if (result.success) {
-        // Start swap animation
         setSwappingCells({ cell1: draggedKey, cell2: targetKey });
 
-        // Optimistically update local state immediately with swapped content
+        // Optimistically update local state
         setLocalAssignments(prev => {
           return prev.map(a => {
             if (a.id === draggedAssignment.id) {
-              // This assignment stays at its position but gets target's content
               return {
                 ...a,
                 subject_id: targetAssignment.subject_id,
@@ -262,7 +304,6 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
               };
             }
             if (a.id === targetAssignment.id) {
-              // This assignment stays at its position but gets dragged's content
               return {
                 ...a,
                 subject_id: draggedAssignment.subject_id,
@@ -275,10 +316,8 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
           });
         });
 
-        // Clear animation after it completes
         setTimeout(() => {
           setSwappingCells(null);
-          // Silently refresh from server in background
           if (onSwapComplete) {
             onSwapComplete();
           }
@@ -287,7 +326,6 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
         throw new Error(result.message || 'حدث خطأ اثناء تبديل الحصص');
       }
     } catch (error: any) {
-
       const errorMsg = error.response?.data?.detail || error.message || 'حدث خطأ اثناء تبديل الحصص';
       toast({
         title: 'خطأ',
@@ -295,18 +333,10 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
         variant: 'destructive'
       });
     } finally {
-      setDraggedAssignment(null);
-      setDragOverCell(null);
-      setIsValidDrop(false);
+      handleMouseUp();
     }
   };
 
-  const handleDragEnd = () => {
-    setDraggedAssignment(null);
-    setDragOverCell(null);
-    setIsValidDrop(false);
-    setSwapValidityCache(new Map()); // Clear cache when drag ends
-  };
 
   const renderCell = (day: number, period: number) => {
     const key = `${day}-${period}`;
@@ -318,9 +348,9 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
     if (!assignment) {
       return (
         <div
-          onDragOver={(e) => handleDragOver(e, day, period)}
-          onDragLeave={handleDragLeave}
-          onDrop={(e) => handleDrop(e, day, period)}
+          onMouseEnter={() => handleCellMouseEnter(day, period)}
+          onMouseLeave={handleCellMouseLeave}
+          onMouseUp={() => handleCellMouseUp(day, period)}
           className={cn(
             "h-full min-h-[90px] p-3 border border-dashed border-gray-200 dark:border-slate-600/50 rounded-lg bg-gray-50 dark:bg-slate-800/30 hover:bg-gray-100 dark:hover:bg-slate-700/40 transition-colors flex items-center justify-center select-none",
             isDragOver && !isValidDrop && "bg-red-100 dark:bg-red-900/40 border-red-400 dark:border-red-600 animate-pulse"
@@ -337,32 +367,21 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
 
     const hasConflict = assignment.has_conflict;
 
+    const isThisCellDragging = draggedAssignment?.id === assignment?.id && isDragging;
+
     return (
       <div
-        draggable={!readOnly && !isSwapping}
-        onDragStart={(e) => {
-          // Ensure drag event is properly initialized
-          if (e.dataTransfer) {
-            handleDragStart(e, assignment);
-          }
-        }}
-        onDragEnd={handleDragEnd}
-        onDragOver={(e) => handleDragOver(e, day, period)}
-        onDragLeave={handleDragLeave}
-        onDrop={(e) => handleDrop(e, day, period)}
-        onMouseDown={(e) => {
-          // Explicitly allow selection start for drag in Tauri
-          if (e.button === 0) { // Left mouse button
-            // This helps ensure the drag event fires properly
-          }
-        }}
+        onMouseDown={(e) => handleMouseDown(e, assignment)}
+        onMouseEnter={() => handleCellMouseEnter(day, period)}
+        onMouseLeave={handleCellMouseLeave}
+        onMouseUp={() => handleCellMouseUp(day, period)}
         className={cn(
           "h-full min-h-[90px] p-3 rounded-lg transition-all cursor-move group relative select-none",
           hasConflict
             ? "bg-red-50 dark:bg-red-950 border-2 border-red-300 dark:border-red-700"
             : "bg-blue-50 dark:bg-slate-800/90 border border-blue-200 dark:border-slate-600/50",
           !readOnly && !isSwapping && "hover:opacity-80 active:scale-95",
-          isDragging && "opacity-50 scale-95",
+          isThisCellDragging && "opacity-30 scale-95",
           isDragOver && isValidDrop && "animate-wiggle border-green-500 dark:border-emerald-400 border-2 bg-green-50 dark:bg-slate-700/80",
           isDragOver && !isValidDrop && "border-red-500 dark:border-red-400 border-2 bg-red-50 dark:bg-slate-800",
           isSwapping && "animate-swap-pulse ring-2 ring-emerald-500 dark:ring-emerald-400 ring-offset-2 dark:ring-offset-slate-900"
@@ -430,7 +449,7 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
   };
 
   return (
-    <div className="space-y-4" dir="rtl">
+    <div className="space-y-4" dir="rtl" onMouseMove={handleMouseMove}>
       {/* Header Controls */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -530,6 +549,22 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Dragging Ghost Element */}
+      {isDragging && draggedAssignment && dragCurrentPos && (
+        <div
+          className="fixed pointer-events-none z-50"
+          style={{
+            left: dragCurrentPos.x - 75,
+            top: dragCurrentPos.y - 30
+          }}
+        >
+          <div className="bg-blue-500 dark:bg-slate-700 text-white p-3 rounded-lg shadow-2xl border-2 border-blue-600 dark:border-slate-500 min-w-[150px] opacity-90 scale-110">
+            <div className="font-semibold text-sm">{draggedAssignment.subject_name}</div>
+            <div className="text-xs mt-1 opacity-90">{draggedAssignment.teacher_name}</div>
+          </div>
+        </div>
+      )}
 
       {/* Details Dialog */}
       <Dialog open={showDetailsDialog} onOpenChange={setShowDetailsDialog}>

@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { IOSSwitch } from '@/components/ui/ios-switch';
 import { UserRole } from '@/types/school';
 import { Eye, EyeOff, School, User, DollarSign, Sun, Moon, LogIn } from 'lucide-react';
 
@@ -21,6 +22,7 @@ const LoginPage = () => {
         password: '',
         role: '' as UserRole | ''
     });
+    const [rememberMe, setRememberMe] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
 
     const from = location.state?.from?.pathname || '/';
@@ -79,11 +81,14 @@ const LoginPage = () => {
             return;
         }
 
-        await login({
-            username: formData.username,
-            password: formData.password,
-            role: formData.role
-        });
+        await login(
+            {
+                username: formData.username,
+                password: formData.password,
+                role: formData.role
+            },
+            { remember: rememberMe }
+        );
     };
 
     const handleInputChange = (field: string, value: string) => {
@@ -93,15 +98,13 @@ const LoginPage = () => {
     const selectedRole = roleOptions.find(role => role.value === formData.role);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex items-center justify-center p-4">
-            <div className="w-full max-w-md">
+        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex items-start justify-center px-4 pt-8 pb-6">
+            <div className="w-full max-w-md mx-auto max-h-[calc(100vh-3.5rem)] overflow-auto">
                 {/* App Logo and Title */}
-                <div className="text-center mb-8">
-                    <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-primary via-primary/90 to-accent rounded-3xl mb-4 shadow-lg">
-                        <span className="text-white text-2xl font-bold">DAS</span>
-                    </div>
+                <div className="text-center mb-6">
+                    <img src="/icon.png" alt="DAS Logo" className="w-24 h-24 mx-auto mb-4" />
                     <h1 className="text-3xl font-bold text-foreground mb-2">
-                        نظام إدارة المدرسة
+                        Educore
                     </h1>
                     <p className="text-muted-foreground">
                         مرحباً بك، قم بتسجيل الدخول للمتابعة
@@ -192,6 +195,15 @@ const LoginPage = () => {
                             </div>
                         </div>
 
+                        {/* Remember Me */}
+                        <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-muted/40 px-4 py-3">
+                            <div className="space-y-0.5">
+                                <Label className="text-sm font-semibold">تذكرني</Label>
+                                <p className="text-xs text-muted-foreground">تسجيل الدخول تلقائياً في المرة القادمة</p>
+                            </div>
+                            <IOSSwitch checked={rememberMe} onCheckedChange={setRememberMe} />
+                        </div>
+
                         {/* Submit Button */}
                         <Button
                             type="submit"
@@ -216,7 +228,7 @@ const LoginPage = () => {
 
                 {/* Footer */}
                 <div className="text-center mt-6 text-sm text-muted-foreground">
-                    <p> 2025 نظام DAS لإدارة المدارس</p>
+                    <p dir="ltr">© Rizonway 2026</p>
                 </div>
             </div>
         </div>

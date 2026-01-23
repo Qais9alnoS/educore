@@ -86,6 +86,24 @@ export const StudentFinanceDetailModal: React.FC<StudentFinanceDetailModalProps>
     try {
       setLoading(true);
       const response = await financeManagerApi.getStudentFinanceDetailed(studentId, academicYearId);
+      console.log('📊 Student Finance Data Loaded:', response.data);
+      console.log('💰 Total Amount:', response.data?.total_amount);
+      console.log('💵 Total Paid:', response.data?.total_paid);
+      console.log('📉 Partial Balance:', response.data?.partial_balance);
+      console.log('📊 Total Balance:', response.data?.total_balance);
+      console.log('💳 Payments:', response.data?.payments);
+      
+      // Debug: Check payment statuses
+      if (response.data?.payments) {
+        response.data.payments.forEach((payment: any, idx: number) => {
+          console.log(`Payment ${idx + 1}:`, {
+            amount: payment.payment_amount,
+            status: payment.payment_status,
+            date: payment.payment_date
+          });
+        });
+      }
+      
       setStudent(response.data);
 
       // Populate form with existing data
@@ -169,10 +187,11 @@ export const StudentFinanceDetailModal: React.FC<StudentFinanceDetailModalProps>
         description: 'تم تسجيل الدفعة بنجاح'
       });
 
+      console.log('✅ Payment added successfully, reloading student details...');
       setPaymentAmount('');
       setReceiptNumber('');
       setShowPaymentForm(false);
-      loadStudentDetails();
+      await loadStudentDetails();
       onUpdate?.();
     } catch (error: any) {
       // استخراج رسالة الخطأ من صيغ مختلفة
@@ -282,7 +301,7 @@ export const StudentFinanceDetailModal: React.FC<StudentFinanceDetailModalProps>
                 </div>
 
                 {showPaymentForm && (
-                  <div className="space-y-4 bg-gray-50 dark:bg-gray-800 p-4 rounded-lg">
+                  <div className="space-y-4 bg-yellow-50 dark:bg-yellow-950 p-4 rounded-lg border border-yellow-200 dark:border-yellow-800">
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <Label>قيمة الدفعة</Label>
@@ -395,8 +414,8 @@ export const StudentFinanceDetailModal: React.FC<StudentFinanceDetailModalProps>
                 </div>
 
                 {/* القسط المدرسي */}
-                <div className="space-y-3 p-4 bg-purple-50 dark:bg-purple-950 rounded-lg border border-purple-200 dark:border-purple-800">
-                  <h4 className="font-medium text-purple-900 dark:text-purple-300">القسط المدرسي</h4>
+                <div className="space-y-3 p-4 bg-blue-50 dark:bg-blue-950 rounded-lg border border-blue-200 dark:border-blue-800">
+                  <h4 className="font-medium text-blue-900 dark:text-blue-300">القسط المدرسي</h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <Label>المبلغ الأساسي</Label>
@@ -485,7 +504,7 @@ export const StudentFinanceDetailModal: React.FC<StudentFinanceDetailModalProps>
                   <AlertDescription className="flex justify-between items-center">
                     <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">الإجمالي المطلوب:</span>
                     <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                      {totalAmount.toLocaleString('ar-SY')} ل.س
+                      {student.total_amount.toLocaleString('ar-SY')} ل.س
                     </span>
                   </AlertDescription>
                 </Alert>

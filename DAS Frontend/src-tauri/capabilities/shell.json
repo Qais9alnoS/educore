@@ -9,7 +9,7 @@
       "identifier": "shell:allow-execute",
       "allow": [
         {
-          "name": "das-backend",
+          "name": "school-management-backend",
           "sidecar": true
         }
       ]

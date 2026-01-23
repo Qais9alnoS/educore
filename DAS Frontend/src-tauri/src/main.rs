@@ -14,6 +14,9 @@ use std::net::TcpStream;
 use std::io::{Write, Read};
 use std::thread;
 
+#[cfg(target_os = "windows")]
+use std::os::windows::process::CommandExt;
+
 // Command to handle search functionality
 #[command]
 async fn handle_search(query: &str, _window: tauri::Window) -> Result<String, String> {
@@ -103,6 +106,29 @@ fn wait_for_backend_ready(max_attempts: u32, delay_ms: u64) -> bool {
     false
 }
 
+fn terminate_backend_process(pid: u32) {
+    // Use taskkill with /T to kill the entire process tree (including child processes)
+    // /F forces termination, /T terminates the process tree
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        let _ = Command::new("taskkill")
+            .args(&["/PID", &pid.to_string(), "/T", "/F"])
+            .creation_flags(CREATE_NO_WINDOW)
+            .output();
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = Command::new("taskkill")
+            .args(&["/PID", &pid.to_string(), "/T", "/F"])
+            .output();
+    }
+    
+    #[cfg(debug_assertions)]
+    println!("taskkill sent for process tree starting at PID: {}", pid);
+}
+
 fn start_backend() -> Result<Child, std::io::Error> {
     // Get the directory where the exe is located
     let exe_path = std::env::current_exe()?;
@@ -111,7 +137,7 @@ fn start_backend() -> Result<Child, std::io::Error> {
     })?;
     
     // Look for backend exe in the same directory
-    let backend_path = exe_dir.join("das-backend.exe");
+    let backend_path = exe_dir.join("school-management-backend.exe");
     
     #[cfg(debug_assertions)]
     println!("Looking for backend at: {:?}", backend_path);
@@ -128,7 +154,7 @@ fn start_backend() -> Result<Child, std::io::Error> {
         backend_path
     } else {
         // Try the sidecar naming convention
-        let sidecar_path = exe_dir.join("das-backend-x86_64-pc-windows-msvc.exe");
+        let sidecar_path = exe_dir.join("school-management-backend-x86_64-pc-windows-msvc.exe");
         #[cfg(debug_assertions)]
         println!("Trying sidecar path: {:?}", sidecar_path);
         if sidecar_path.exists() {
@@ -163,6 +189,7 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![handle_search, toggle_theme, open_settings])
         .setup(|app| {
             // Start the backend server
@@ -195,27 +222,25 @@ fn main() {
             // Handle window close to ensure backend is terminated
             let app_handle_clone = app.handle().clone();
             main_window.on_window_event(move |event| {
-                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
-                    // Allow the window to close
-                    api.prevent_close();
+                if let tauri::WindowEvent::CloseRequested { .. } = event {
+                    // Don't prevent close - let Tauri handle it gracefully
+                    // The RunEvent::Exit handler will clean up the backend
                     
-                    // Terminate backend before exiting
-                    if let Some(backend) = app_handle_clone.try_state::<BackendProcess>() {
-                        if let Ok(mut process) = backend.0.lock() {
-                            if let Some(mut child) = process.take() {
-                                let pid = child.id();
-                                #[cfg(debug_assertions)]
-                                println!("Window close detected, terminating backend (PID: {})", pid);
-                                
-                                let _ = Command::new("taskkill")
-                                    .args(&["/PID", &pid.to_string(), "/F"])
-                                    .output();
+                    // Spawn a thread to terminate the backend without blocking the UI
+                    let app_handle_thread = app_handle_clone.clone();
+                    std::thread::spawn(move || {
+                        if let Some(backend) = app_handle_thread.try_state::<BackendProcess>() {
+                            if let Ok(mut process) = backend.0.lock() {
+                                if let Some(child) = process.take() {
+                                    let pid = child.id();
+                                    #[cfg(debug_assertions)]
+                                    println!("Window close detected, terminating backend process tree (PID: {})", pid);
+                                    
+                                    terminate_backend_process(pid);
+                                }
                             }
                         }
-                    }
-                    
-                    // Now exit the app
-                    std::process::exit(0);
+                    });
                 }
             });
             
@@ -229,35 +254,13 @@ fn main() {
             if let tauri::RunEvent::Exit = event {
                 if let Some(backend) = app_handle.try_state::<BackendProcess>() {
                     if let Ok(mut process) = backend.0.lock() {
-                        if let Some(mut child) = process.take() {
-                            // Get process ID for termination
+                        if let Some(child) = process.take() {
                             let pid = child.id();
-                            
                             #[cfg(debug_assertions)]
-                            println!("Terminating backend process (PID: {})", pid);
+                            println!("App exit detected, terminating backend process tree (PID: {})", pid);
                             
-                            // Use taskkill to forcefully terminate the backend process
-                            // This ensures the backend exits even if it's not responsive
-                            match Command::new("taskkill")
-                                .args(&["/PID", &pid.to_string(), "/F"])
-                                .output() {
-                                Ok(output) => {
-                                    #[cfg(debug_assertions)]
-                                    {
-                                        if output.status.success() {
-                                            println!("Backend process (PID: {}) terminated successfully", pid);
-                                        } else {
-                                            eprintln!("taskkill returned: {}", String::from_utf8_lossy(&output.stderr));
-                                        }
-                                    }
-                                }
-                                Err(e) => {
-                                    // Also try the regular kill method as a fallback
-                                    #[cfg(debug_assertions)]
-                                    eprintln!("taskkill failed: {}", e);
-                                    let _ = child.kill();
-                                }
-                            }
+                            // Terminate the backend process tree without blocking
+                            terminate_backend_process(pid);
                         }
                     }
                 }

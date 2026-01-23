@@ -117,15 +117,15 @@
     );
 
     /* iOS-inspired shadows */
-    --shadow-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.06),
-      0 1px 2px rgba(0, 0, 0, 0.08);
-    --shadow-elevation-2: 0 4px 6px rgba(0, 0, 0, 0.07),
-      0 1px 3px rgba(0, 0, 0, 0.06);
-    --shadow-elevation-3: 0 10px 25px rgba(0, 0, 0, 0.09),
-      0 4px 10px rgba(0, 0, 0, 0.06);
+    --shadow-elevation-1:
+      0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.08);
+    --shadow-elevation-2:
+      0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
+    --shadow-elevation-3:
+      0 10px 25px rgba(0, 0, 0, 0.09), 0 4px 10px rgba(0, 0, 0, 0.06);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.08);
-    --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.08),
-      0 2px 4px rgba(0, 0, 0, 0.08);
+    --shadow-card-hover:
+      0 4px 12px rgba(0, 0, 0, 0.08), 0 2px 4px rgba(0, 0, 0, 0.08);
     --shadow-glow: 0 0 15px hsl(211, 86%, 60%, 0.3);
   }
 
@@ -140,8 +140,8 @@
     --popover: 0 0% 12%; /* Dark popover */
     --popover-foreground: 0 0% 100%; /* White text */
 
-    --border: 0 0% 20%; /* Dark border */
-    --input: 0 0% 22%; /* Slightly lighter input border */
+    --border: 0 0% 22%; /* Dark border */
+    --input: 0 0% 20%; /* Slightly darker input border */
 
     --card: 0 0% 12%; /* Dark cards */
     --card-foreground: 0 0% 100%; /* White text */
@@ -194,15 +194,15 @@
     );
 
     /* iOS-inspired shadows for dark mode */
-    --shadow-elevation-1: 0 1px 3px rgba(0, 0, 0, 0.2),
-      0 1px 2px rgba(0, 0, 0, 0.15);
-    --shadow-elevation-2: 0 4px 6px rgba(0, 0, 0, 0.25),
-      0 1px 3px rgba(0, 0, 0, 0.2);
-    --shadow-elevation-3: 0 10px 25px rgba(0, 0, 0, 0.3),
-      0 4px 10px rgba(0, 0, 0, 0.25);
+    --shadow-elevation-1:
+      0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
+    --shadow-elevation-2:
+      0 4px 6px rgba(0, 0, 0, 0.25), 0 1px 3px rgba(0, 0, 0, 0.2);
+    --shadow-elevation-3:
+      0 10px 25px rgba(0, 0, 0, 0.3), 0 4px 10px rgba(0, 0, 0, 0.25);
     --shadow-card: 0 1px 3px rgba(0, 0, 0, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
-    --shadow-card-hover: 0 4px 12px rgba(0, 0, 0, 0.25),
-      0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-card-hover:
+      0 4px 12px rgba(0, 0, 0, 0.25), 0 2px 4px rgba(0, 0, 0, 0.2);
     --shadow-glow: 0 0 15px hsl(211, 86%, 65%, 0.4);
   }
 
@@ -220,8 +220,12 @@
     /* iOS-inspired styling with modern premium fonts */
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
-    font-family: "Tajawal", "Plus Jakarta Sans", -apple-system,
-      BlinkMacSystemFont, sans-serif;
+    font-family:
+      "Tajawal",
+      "Plus Jakarta Sans",
+      -apple-system,
+      BlinkMacSystemFont,
+      sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
@@ -354,7 +358,7 @@
   /* Main app container */
   .app-container {
     width: 100%;
-    height: 100vh;
+    height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
     position: relative;
@@ -489,12 +493,14 @@
 
   /* Premium Glow Effects */
   .glow-primary {
-    box-shadow: 0 0 15px hsl(var(--primary) / 0.3),
+    box-shadow:
+      0 0 15px hsl(var(--primary) / 0.3),
       0 0 30px hsl(var(--primary) / 0.2);
   }
 
   .glow-secondary {
-    box-shadow: 0 0 15px hsl(var(--secondary) / 0.3),
+    box-shadow:
+      0 0 15px hsl(var(--secondary) / 0.3),
       0 0 30px hsl(var(--secondary) / 0.2);
   }
 
@@ -653,6 +659,93 @@
 }
 
 @layer components {
+  .director-notes-editor {
+    @apply text-base leading-relaxed text-foreground;
+  }
+
+  .director-notes-editor p {
+    @apply mb-3;
+  }
+
+  .director-notes-editor h1 {
+    @apply text-3xl font-bold mb-4 mt-6;
+  }
+
+  .director-notes-editor h2 {
+    @apply text-2xl font-bold mb-3 mt-5;
+  }
+
+  .director-notes-editor h3 {
+    @apply text-xl font-bold mb-3 mt-4;
+  }
+
+  .director-notes-editor blockquote {
+    @apply border-r-4 border-border pr-4 py-2 text-muted-foreground;
+  }
+
+  .director-notes-editor code {
+    @apply font-mono text-sm bg-muted px-2 py-1 rounded-md;
+  }
+
+  .director-notes-editor pre {
+    @apply font-mono text-sm bg-muted rounded-[var(--radius)] p-4 overflow-x-auto;
+  }
+
+  .director-notes-editor ul,
+  .director-notes-editor ol {
+    @apply mr-6 mb-3;
+  }
+
+  .director-notes-editor ul {
+    @apply list-disc;
+  }
+
+  .director-notes-editor ol {
+    @apply list-decimal;
+  }
+
+  .director-notes-editor li {
+    @apply mb-1;
+  }
+
+  .director-notes-editor[dir="rtl"] ul {
+    @apply list-disc;
+    @apply ml-6 mr-0;
+  }
+
+  .director-notes-editor[dir="rtl"] ol {
+    @apply list-decimal;
+    @apply ml-6 mr-0;
+  }
+
+  .director-notes-editor[dir="rtl"] li {
+    @apply text-right;
+  }
+
+  .director-notes-editor table {
+    @apply my-4 border-collapse w-full;
+  }
+
+  .director-notes-editor th,
+  .director-notes-editor td {
+    @apply border border-border px-3 py-2 align-top;
+  }
+
+  .director-notes-editor th {
+    @apply bg-muted font-semibold;
+  }
+
+  .md-token {
+    @apply text-muted-foreground/60 select-none;
+  }
+
+  .editor-reading .md-token {
+    @apply hidden;
+  }
+
+  .editor-reading .director-notes-editor {
+    @apply cursor-default;
+  }
   /* Modern Number Input with Custom Spinners */
   .number-input-wrapper {
     position: relative;
@@ -774,4 +867,325 @@
   .date-input-wrapper .calendar-icon {
     @apply absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground pointer-events-none;
   }
+}
+
+/* Enhanced Note Editor - CSS Variables */
+:root {
+  --table-header-bg: #f0f0f0;
+  --table-header-text: #000;
+  --code-bg: #f5f5f5;
+  --code-text: #333;
+  --code-inline-bg: #f0f0f0;
+  --code-inline-text: #333;
+}
+
+.dark {
+  --table-header-bg: #374151;
+  --table-header-text: #f3f4f6;
+  --code-bg: #1f2937;
+  --code-text: #f3f4f6;
+  --code-inline-bg: #374151;
+  --code-inline-text: #e5e7eb;
+}
+
+/* Enhanced Editor Styling */
+@layer components {
+  [contenteditable] {
+    @apply outline-none;
+  }
+
+  [contenteditable] h1 {
+    @apply text-3xl font-bold mb-4 mt-6;
+  }
+
+  [contenteditable] h2 {
+    @apply text-2xl font-bold mb-3 mt-5;
+  }
+
+  [contenteditable] h3 {
+    @apply text-xl font-bold mb-3 mt-4;
+  }
+
+  [contenteditable] p {
+    @apply mb-3;
+  }
+
+  [contenteditable] blockquote {
+    @apply border-l-4 pl-4 py-2 opacity-75;
+  }
+
+  [contenteditable] code {
+    @apply font-mono text-sm;
+  }
+
+  [contenteditable] pre {
+    @apply font-mono text-sm overflow-x-auto;
+  }
+
+  [contenteditable] ul,
+  [contenteditable] ol {
+    @apply ml-6 mb-3;
+  }
+
+  [contenteditable] li {
+    @apply mb-1;
+  }
+
+  [contenteditable] table {
+    @apply my-4 border-collapse;
+  }
+
+  [contenteditable] td,
+  [contenteditable] th {
+    @apply px-3 py-2 border;
+  }
+
+  /* Markdown-style rendering within editor */
+  .md-h1 {
+    @apply text-3xl font-bold;
+  }
+  .md-h2 {
+    @apply text-2xl font-bold;
+  }
+  .md-h3 {
+    @apply text-xl font-bold;
+  }
+  .md-bold {
+    @apply font-bold;
+  }
+  .md-italic {
+    @apply italic;
+  }
+  .md-strikethrough {
+    @apply line-through opacity-75;
+  }
+}
+
+/* ===== Notion-like Editor Styles ===== */
+@layer components {
+  /* Editor wrapper */
+  .notion-editor-wrapper {
+    @apply shadow-sm;
+  }
+
+  /* Editor content area */
+  .notion-editor {
+    @apply text-base leading-relaxed text-foreground;
+    min-height: 500px;
+  }
+
+  .notion-editor-content {
+    @apply outline-none;
+  }
+
+  .notion-editor-content:focus {
+    @apply outline-none;
+  }
+
+  /* Placeholder styling */
+  .notion-editor .is-editor-empty:first-child::before {
+    @apply text-muted-foreground pointer-events-none float-right h-0;
+    content: attr(data-placeholder);
+  }
+
+  /* Paragraph */
+  .notion-editor p {
+    @apply mb-3 leading-relaxed;
+  }
+
+  .notion-editor p.is-editor-empty:first-child::before {
+    @apply text-muted-foreground pointer-events-none float-right h-0;
+    content: attr(data-placeholder);
+  }
+
+  /* Headings */
+  .notion-editor h1 {
+    @apply text-3xl font-bold mb-4 mt-6 leading-tight;
+  }
+
+  .notion-editor h2 {
+    @apply text-2xl font-semibold mb-3 mt-5 leading-tight;
+  }
+
+  .notion-editor h3 {
+    @apply text-xl font-semibold mb-3 mt-4 leading-tight;
+  }
+
+  /* Bold and Italic */
+  .notion-editor strong {
+    @apply font-bold;
+  }
+
+  .notion-editor em {
+    @apply italic;
+  }
+
+  /* Strikethrough */
+  .notion-editor s,
+  .notion-editor del {
+    @apply line-through opacity-75;
+  }
+
+  /* Inline Code */
+  .notion-editor code {
+    @apply font-mono text-sm bg-muted px-1.5 py-0.5 rounded-md;
+  }
+
+  /* Code Block */
+  .notion-editor pre,
+  .notion-editor .notion-code-block {
+    @apply font-mono text-sm bg-muted rounded-[var(--radius)] p-4 overflow-x-auto my-4;
+  }
+
+  .notion-editor pre code {
+    @apply bg-transparent p-0;
+  }
+
+  /* Blockquote */
+  .notion-editor blockquote,
+  .notion-editor .notion-blockquote {
+    @apply border-r-4 border-primary/40 pr-4 pl-0 py-2 my-4 text-muted-foreground italic;
+  }
+
+  /* RTL blockquote adjustment */
+  .notion-editor[dir="rtl"] blockquote,
+  .notion-editor[dir="rtl"] .notion-blockquote {
+    @apply border-r-4 border-l-0 pr-4 pl-0;
+  }
+
+  .notion-editor[dir="ltr"] blockquote,
+  .notion-editor[dir="ltr"] .notion-blockquote {
+    @apply border-l-4 border-r-0 pl-4 pr-0;
+  }
+
+  /* Lists */
+  .notion-editor ul,
+  .notion-editor .notion-bullet-list {
+    @apply list-disc mr-6 mb-3;
+  }
+
+  .notion-editor ol,
+  .notion-editor .notion-ordered-list {
+    @apply list-decimal mr-6 mb-3;
+  }
+
+  .notion-editor li {
+    @apply mb-1.5 leading-relaxed;
+  }
+
+  .notion-editor li p {
+    @apply mb-0;
+  }
+
+  /* RTL list adjustment */
+  .notion-editor[dir="rtl"] ul,
+  .notion-editor[dir="rtl"] ol {
+    @apply ml-6 mr-0;
+  }
+
+  .notion-editor[dir="ltr"] ul,
+  .notion-editor[dir="ltr"] ol {
+    @apply mr-6 ml-0;
+  }
+
+  /* Horizontal Rule */
+  .notion-editor hr,
+  .notion-editor .notion-hr {
+    @apply border-t border-border my-6;
+  }
+
+  /* Table Styles */
+  .notion-editor table,
+  .notion-editor .notion-table {
+    @apply w-full my-4 border-collapse rounded-lg overflow-hidden;
+  }
+
+  .notion-editor th,
+  .notion-editor .notion-table-header {
+    @apply bg-muted font-semibold text-foreground px-3 py-2.5 border border-border text-right;
+  }
+
+  .notion-editor td,
+  .notion-editor .notion-table-cell {
+    @apply px-3 py-2.5 border border-border align-top;
+  }
+
+  .notion-editor tr:hover td {
+    @apply bg-muted/30;
+  }
+
+  /* Table cell selection */
+  .notion-editor .selectedCell {
+    @apply bg-primary/10;
+  }
+
+  .notion-editor .selectedCell::after {
+    @apply absolute inset-0 pointer-events-none border-2 border-primary;
+    content: "";
+  }
+
+  /* Markdown Token Styling */
+  .md-token {
+    @apply text-muted-foreground/50 font-mono text-sm select-none;
+  }
+
+  /* Hide tokens in reading mode */
+  .notion-editor-reading .md-token {
+    @apply hidden;
+  }
+
+  /* Reading mode cursor */
+  .notion-editor-reading {
+    @apply cursor-default;
+  }
+
+  .notion-editor-reading .notion-editor-content {
+    @apply cursor-default;
+  }
+
+  /* Selection styling */
+  .notion-editor ::selection {
+    @apply bg-primary/20;
+  }
+
+  /* Focus ring for table cells */
+  .notion-editor td:focus,
+  .notion-editor th:focus {
+    @apply outline-none ring-2 ring-primary ring-inset;
+  }
+
+  /* Resize handle for tables */
+  .notion-editor .column-resize-handle {
+    @apply absolute top-0 bottom-0 w-1 bg-primary cursor-col-resize;
+    right: -2px;
+  }
+
+  /* Table wrapper for resize */
+  .notion-editor .tableWrapper {
+    @apply overflow-x-auto my-4;
+  }
+
+  /* Resize cursor */
+  .notion-editor .resize-cursor {
+    @apply cursor-col-resize;
+  }
+}
+
+/* Dark mode adjustments for Notion editor */
+.dark .notion-editor pre,
+.dark .notion-editor .notion-code-block {
+  @apply bg-muted;
+}
+
+.dark .notion-editor code {
+  @apply bg-muted;
+}
+
+.dark .notion-editor th,
+.dark .notion-editor .notion-table-header {
+  @apply bg-muted;
+}
+
+.dark .notion-editor .selectedCell {
+  @apply bg-primary/20;
 }

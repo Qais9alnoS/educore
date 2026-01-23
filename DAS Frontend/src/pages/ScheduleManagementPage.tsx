@@ -33,6 +33,13 @@ import { ScheduleGenerator } from '@/components/schedule/ScheduleGenerator';
 import { toast } from '@/hooks/use-toast';
 import { schedulesApi, subjectsApi, teachersApi } from '@/services/api';
 import * as api from '@/services/api';
+import {
+  saveScheduleCache,
+  loadScheduleCache,
+  clearScheduleCache,
+  clearCacheIfAcademicYearChanged,
+  clearCacheAfterGeneration
+} from '@/lib/scheduleCache';
 
 interface ScheduleData {
   academicYearId: number;
@@ -126,33 +133,32 @@ export const ScheduleManagementPage: React.FC = () => {
       return;
     }
 
-    const savedData = localStorage.getItem(AUTOSAVE_KEY);
+    const savedData = loadScheduleCache();
     if (savedData) {
       try {
-        const parsed = JSON.parse(savedData);
-        if (parsed.scheduleData) {
-          setScheduleData(parsed.scheduleData);
+        if (savedData.scheduleData) {
+          setScheduleData(savedData.scheduleData);
         }
-        if (parsed.currentStep) {
-          setCurrentStep(parsed.currentStep);
+        if (savedData.currentStep) {
+          setCurrentStep(savedData.currentStep);
         }
-        if (parsed.stepStatus) {
-          setStepStatus(parsed.stepStatus);
+        if (savedData.stepStatus) {
+          setStepStatus(savedData.stepStatus);
         }
-        if (parsed.previewData) {
-          setPreviewData(parsed.previewData);
+        if (savedData.previewData) {
+          setPreviewData(savedData.previewData);
         }
-        if (parsed.scheduleAssignments) {
-          setScheduleAssignments(parsed.scheduleAssignments);
+        if (savedData.scheduleAssignments) {
+          setScheduleAssignments(savedData.scheduleAssignments);
         }
-        if (parsed.generationRequest) {
-          generationRequestRef.current = parsed.generationRequest;
+        if (savedData.generationRequest) {
+          generationRequestRef.current = savedData.generationRequest;
         }
-        if (parsed.isPreviewMode) {
-          setIsPreviewMode(parsed.isPreviewMode);
+        if (savedData.isPreviewMode) {
+          setIsPreviewMode(savedData.isPreviewMode);
         }
       } catch (error) {
-
+        console.warn('Error loading schedule cache:', error);
       }
     }
   }, []);
@@ -160,19 +166,96 @@ export const ScheduleManagementPage: React.FC = () => {
   // Autosave effect - save preview data too
   useEffect(() => {
     if (scheduleData) {
-      const dataToSave = {
+      saveScheduleCache({
         scheduleData,
         currentStep,
         stepStatus,
         previewData,
         scheduleAssignments,
         generationRequest: generationRequestRef.current,
-        isPreviewMode,
-        timestamp: Date.now()
-      };
-      localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(dataToSave));
+        isPreviewMode
+      });
     }
   }, [scheduleData, currentStep, stepStatus, previewData, scheduleAssignments, isPreviewMode]);
+
+  // Monitor academic year changes and clear cache if needed
+  useEffect(() => {
+    const checkAcademicYearChange = () => {
+      const selectedYearId = localStorage.getItem('selected_academic_year_id');
+      const currentYearId = selectedYearId ? parseInt(selectedYearId) : null;
+
+      if (clearCacheIfAcademicYearChanged(currentYearId)) {
+        // Reset UI state when cache is cleared
+        setCurrentStep('filter');
+        setScheduleData(null);
+        setScheduleAssignments([]);
+        setGeneratedScheduleId(null);
+        setPreviewData(null);
+        setIsPreviewMode(false);
+        setStepStatus({
+          filter: false,
+          validate: false,
+          constraints: false,
+          generate: false,
+          view: false,
+          conflicts: false,
+          export: false
+        });
+        generationRequestRef.current = null;
+
+        toast({
+          title: 'تم إعادة تعيين الجدول',
+          description: 'تم تغيير السنة الدراسية. تم مسح المعاينة السابقة.'
+        });
+      }
+    };
+
+    // Check on component mount and when selected academic year changes
+    checkAcademicYearChange();
+
+    // Listen for storage changes (academic year selection from other tabs)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'selected_academic_year_id') {
+        checkAcademicYearChange();
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
+
+  // Monitor page visibility and clear cache if page was hidden for a long time
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Page is hidden, store the current time
+        sessionStorage.setItem('schedule_page_hidden_time', Date.now().toString());
+      } else {
+        // Page is now visible, check if it was hidden for too long (> 10 minutes)
+        const hiddenTime = sessionStorage.getItem('schedule_page_hidden_time');
+        if (hiddenTime) {
+          const hiddenDuration = Date.now() - parseInt(hiddenTime);
+          const maxHiddenDuration = 10 * 60 * 1000; // 10 minutes
+
+          if (hiddenDuration > maxHiddenDuration && previewData && previewData.length > 0) {
+            // Clear preview data when returning after long absence
+            setPreviewData(null);
+            setIsPreviewMode(false);
+            setCurrentStep('generate');
+
+            toast({
+              title: 'انتهت صلاحية المعاينة',
+              description: 'تم مسح المعاينة السابقة. يرجى إعادة إنشاء الجدول.'
+            });
+          }
+        }
+        sessionStorage.removeItem('schedule_page_hidden_time');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [previewData]);
 
   const steps: StepConfig[] = [
     { id: 'filter', title: 'اختيار الصف', description: 'تحديد الصف والشعبة', icon: Filter, completed: stepStatus.filter },
@@ -378,8 +461,8 @@ export const ScheduleManagementPage: React.FC = () => {
       setIsPreviewMode(false);
       markStepCompleted('export');
 
-      // Clear autosave after successful publish
-      localStorage.removeItem(AUTOSAVE_KEY);
+      // Clear cache after successful publish
+      clearCacheAfterGeneration();
 
       toast({
         title: 'تم النشر بنجاح',
@@ -404,8 +487,8 @@ export const ScheduleManagementPage: React.FC = () => {
 
   const handleExport = () => {
     setShowExporter(true);
-    // Clear autosave cache when exporting since the schedule is now finalized
-    localStorage.removeItem(AUTOSAVE_KEY);
+    // Clear cache when exporting since the schedule is now finalized
+    clearCacheAfterGeneration();
   };
 
   return (

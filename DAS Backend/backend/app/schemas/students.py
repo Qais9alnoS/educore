@@ -31,6 +31,7 @@ class StudentBase(BaseModel):
     session_type: str  # morning, evening
     ninth_grade_total: Optional[Decimal] = None
     notes: Optional[str] = None
+    class_id: Optional[int] = None
 
 class StudentCreate(StudentBase):
     academic_year_id: int

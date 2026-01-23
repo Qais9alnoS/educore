@@ -17,9 +17,9 @@ import { useAuth } from '@/contexts/AuthContext';
 type GradeType =
   | 'board_grades'
   | 'recitation_grades'
-  | 'first_exam_grades'
+  | 'first_quiz_grade'
   | 'midterm_grades'
-  | 'second_exam_grades'
+  | 'second_quiz_grade'
   | 'final_exam_grades'
   | 'behavior_grade'
   | 'activity_grade';
@@ -66,9 +66,9 @@ const StudentAcademicInfoPage = () => {
   const [maxGrades, setMaxGrades] = useState<Record<GradeType, number>>({
     board_grades: 100,
     recitation_grades: 100,
-    first_exam_grades: 100,
+    first_quiz_grade: 100,
     midterm_grades: 100,
-    second_exam_grades: 100,
+    second_quiz_grade: 100,
     final_exam_grades: 100,
     behavior_grade: 100,
     activity_grade: 100,
@@ -78,9 +78,9 @@ const StudentAcademicInfoPage = () => {
   const [baseMaxGrades, setBaseMaxGrades] = useState<Record<GradeType, number>>({
     board_grades: 100,
     recitation_grades: 100,
-    first_exam_grades: 100,
+    first_quiz_grade: 100,
     midterm_grades: 100,
-    second_exam_grades: 100,
+    second_quiz_grade: 100,
     final_exam_grades: 100,
     behavior_grade: 100,
     activity_grade: 100,
@@ -90,9 +90,9 @@ const StudentAcademicInfoPage = () => {
   const [passingThresholds, setPassingThresholds] = useState<Record<GradeType, number>>({
     board_grades: 50,
     recitation_grades: 50,
-    first_exam_grades: 50,
+    first_quiz_grade: 50,
     midterm_grades: 50,
-    second_exam_grades: 50,
+    second_quiz_grade: 50,
     final_exam_grades: 50,
     behavior_grade: 50,
     activity_grade: 50,
@@ -102,9 +102,9 @@ const StudentAcademicInfoPage = () => {
   const [thresholdTypes, setThresholdTypes] = useState<Record<GradeType, 'percentage' | 'absolute'>>({
     board_grades: 'percentage',
     recitation_grades: 'percentage',
-    first_exam_grades: 'percentage',
+    first_quiz_grade: 'percentage',
     midterm_grades: 'percentage',
-    second_exam_grades: 'percentage',
+    second_quiz_grade: 'percentage',
     final_exam_grades: 'percentage',
     behavior_grade: 'percentage',
     activity_grade: 'percentage',
@@ -114,9 +114,9 @@ const StudentAcademicInfoPage = () => {
   const [calculationTypes, setCalculationTypes] = useState<Record<GradeType, 'direct' | 'automatic_average'>>({
     board_grades: 'direct',
     recitation_grades: 'direct',
-    first_exam_grades: 'direct',
+    first_quiz_grade: 'direct',
     midterm_grades: 'direct',
-    second_exam_grades: 'direct',
+    second_quiz_grade: 'direct',
     final_exam_grades: 'direct',
     behavior_grade: 'direct',
     activity_grade: 'direct',
@@ -142,9 +142,9 @@ const StudentAcademicInfoPage = () => {
   const gradeTypes = [
     { value: 'board_grades', label: 'السبور' },
     { value: 'recitation_grades', label: 'التسميع' },
-    { value: 'first_exam_grades', label: 'المذاكرة الأولى' },
+    { value: 'first_quiz_grade', label: 'المذاكرة الأولى' },
     { value: 'midterm_grades', label: 'الفحص النصفي' },
-    { value: 'second_exam_grades', label: 'المذاكرة الثانية' },
+    { value: 'second_quiz_grade', label: 'المذاكرة الثانية' },
     { value: 'final_exam_grades', label: 'الفحص النهائي' },
     { value: 'behavior_grade', label: 'السلوك' },
     { value: 'activity_grade', label: 'النشاط' },
@@ -376,9 +376,9 @@ const StudentAcademicInfoPage = () => {
             const newMaxGrades: Record<GradeType, number> = {
               board_grades: 100,
               recitation_grades: 100,
-              first_exam_grades: 100,
+              first_quiz_grade: 100,
               midterm_grades: 100,
-              second_exam_grades: 100,
+              second_quiz_grade: 100,
               final_exam_grades: 100,
               behavior_grade: 100,
               activity_grade: 100,
@@ -389,8 +389,8 @@ const StudentAcademicInfoPage = () => {
             const newCalculationTypes: Record<GradeType, 'direct' | 'automatic_average'> = { ...calculationTypes };
             
             const gradeTypesList: GradeType[] = [
-              'board_grades', 'recitation_grades', 'first_exam_grades',
-              'midterm_grades', 'second_exam_grades', 'final_exam_grades',
+              'board_grades', 'recitation_grades', 'first_quiz_grade',
+              'midterm_grades', 'second_quiz_grade', 'final_exam_grades',
               'behavior_grade', 'activity_grade'
             ];
             
@@ -421,9 +421,9 @@ const StudentAcademicInfoPage = () => {
             const defaultMaxGrades: Record<GradeType, number> = {
               board_grades: 100,
               recitation_grades: 100,
-              first_exam_grades: 100,
+              first_quiz_grade: 100,
               midterm_grades: 100,
-              second_exam_grades: 100,
+              second_quiz_grade: 100,
               final_exam_grades: 100,
               behavior_grade: 100,
               activity_grade: 100,
@@ -436,9 +436,9 @@ const StudentAcademicInfoPage = () => {
           const defaultMaxGrades: Record<GradeType, number> = {
             board_grades: 100,
             recitation_grades: 100,
-            first_exam_grades: 100,
+            first_quiz_grade: 100,
             midterm_grades: 100,
-            second_exam_grades: 100,
+            second_quiz_grade: 100,
             final_exam_grades: 100,
             behavior_grade: 100,
             activity_grade: 100,
@@ -562,7 +562,10 @@ const StudentAcademicInfoPage = () => {
       // Handle both direct array and wrapped response
       const allStudents = Array.isArray(response) ? response : (response?.data || []);
 
-      const filteredStudents = allStudents.filter(s => s.section === selectedSection);
+      const filteredStudents = allStudents.filter(s => 
+        s.section === selectedSection && 
+        (!selectedSessionType || s.session_type === selectedSessionType)
+      );
       const sortedStudents = filteredStudents.sort((a, b) =>
         a.full_name.localeCompare(b.full_name, 'ar')
       );
@@ -742,9 +745,9 @@ const StudentAcademicInfoPage = () => {
               subject_id: 0, // No specific subject
               board_grades: 0,
               recitation_grades: 0,
-              first_exam_grades: 0,
+              first_quiz_grade: 0,
               midterm_grades: 0,
-              second_exam_grades: 0,
+              second_quiz_grade: 0,
               final_exam_grades: 0,
               behavior_grade: 0,
               activity_grade: 0,
@@ -763,9 +766,9 @@ const StudentAcademicInfoPage = () => {
               
               totalRecord.board_grades += toNumber(record.board_grades);
               totalRecord.recitation_grades += toNumber(record.recitation_grades);
-              totalRecord.first_exam_grades += toNumber(record.first_exam_grades);
+              totalRecord.first_quiz_grade += toNumber(record.first_quiz_grade);
               totalRecord.midterm_grades += toNumber(record.midterm_grades);
-              totalRecord.second_exam_grades += toNumber(record.second_exam_grades);
+              totalRecord.second_quiz_grade += toNumber(record.second_quiz_grade);
               totalRecord.final_exam_grades += toNumber(record.final_exam_grades);
               totalRecord.behavior_grade += toNumber(record.behavior_grade);
               totalRecord.activity_grade += toNumber(record.activity_grade);
@@ -791,9 +794,9 @@ const StudentAcademicInfoPage = () => {
               subject_id: 0,
               board_grades: 0,
               recitation_grades: 0,
-              first_exam_grades: 0,
+              first_quiz_grade: 0,
               midterm_grades: 0,
-              second_exam_grades: 0,
+              second_quiz_grade: 0,
               final_exam_grades: 0,
               behavior_grade: 0,
               activity_grade: 0,
@@ -816,9 +819,9 @@ const StudentAcademicInfoPage = () => {
             subject_id: 0,
             board_grades: 0,
             recitation_grades: 0,
-            first_exam_grades: 0,
+            first_quiz_grade: 0,
             midterm_grades: 0,
-            second_exam_grades: 0,
+            second_quiz_grade: 0,
             final_exam_grades: 0,
             behavior_grade: 0,
             activity_grade: 0,
@@ -836,9 +839,9 @@ const StudentAcademicInfoPage = () => {
       const totalMaxGrades: Record<GradeType, number> = {
         board_grades: 0,
         recitation_grades: 0,
-        first_exam_grades: 0,
+        first_quiz_grade: 0,
         midterm_grades: 0,
-        second_exam_grades: 0,
+        second_quiz_grade: 0,
         final_exam_grades: 0,
         behavior_grade: 0,
         activity_grade: 0,
@@ -862,8 +865,8 @@ const StudentAcademicInfoPage = () => {
             console.log(`📚 Settings for subject ${subject.subject_name}:`, subjectSettings);
             
             const gradeTypesList: GradeType[] = [
-              'board_grades', 'recitation_grades', 'first_exam_grades',
-              'midterm_grades', 'second_exam_grades', 'final_exam_grades',
+              'board_grades', 'recitation_grades', 'first_quiz_grade',
+              'midterm_grades', 'second_quiz_grade', 'final_exam_grades',
               'behavior_grade', 'activity_grade'
             ];
             
@@ -880,9 +883,9 @@ const StudentAcademicInfoPage = () => {
             console.log(`⚠️ No settings found for subject ${subject.subject_name}, using defaults`);
             totalMaxGrades.board_grades += 100;
             totalMaxGrades.recitation_grades += 100;
-            totalMaxGrades.first_exam_grades += 100;
+            totalMaxGrades.first_quiz_grade += 100;
             totalMaxGrades.midterm_grades += 100;
-            totalMaxGrades.second_exam_grades += 100;
+            totalMaxGrades.second_quiz_grade += 100;
             totalMaxGrades.final_exam_grades += 100;
             totalMaxGrades.behavior_grade += 100;
             totalMaxGrades.activity_grade += 100;
@@ -892,9 +895,9 @@ const StudentAcademicInfoPage = () => {
           // في حالة الخطأ، استخدم القيم الافتراضية
           totalMaxGrades.board_grades += 100;
           totalMaxGrades.recitation_grades += 100;
-          totalMaxGrades.first_exam_grades += 100;
+          totalMaxGrades.first_quiz_grade += 100;
           totalMaxGrades.midterm_grades += 100;
-          totalMaxGrades.second_exam_grades += 100;
+          totalMaxGrades.second_quiz_grade += 100;
           totalMaxGrades.final_exam_grades += 100;
           totalMaxGrades.behavior_grade += 100;
           totalMaxGrades.activity_grade += 100;
@@ -910,6 +913,38 @@ const StudentAcademicInfoPage = () => {
     } catch (error) {
       console.error('❌ Failed to load total academic records:', error);
     }
+  };
+
+  // Map frontend field names to backend field names
+  const mapToBackendFields = (data: any): any => {
+    const mapped = { ...data };
+    
+    // Map quiz grades
+    if (mapped.first_quiz_grade !== undefined) {
+      mapped.first_quiz_grade = mapped.first_quiz_grade;
+      delete mapped.first_exam_grades;
+    }
+    if (mapped.second_quiz_grade !== undefined) {
+      mapped.second_quiz_grade = mapped.second_quiz_grade;
+      delete mapped.second_exam_grades;
+    }
+    
+    return mapped;
+  };
+
+  // Map backend field names to frontend field names
+  const mapToFrontendFields = (data: any): any => {
+    const mapped = { ...data };
+    
+    // Map quiz grades
+    if (mapped.first_quiz_grade !== undefined) {
+      mapped.first_quiz_grade = mapped.first_quiz_grade;
+    }
+    if (mapped.second_quiz_grade !== undefined) {
+      mapped.second_quiz_grade = mapped.second_quiz_grade;
+    }
+    
+    return mapped;
   };
 
   const saveGrade = async (studentId: number, subjectId: number, gradeType: GradeType, grade: number) => {
@@ -928,7 +963,7 @@ const StudentAcademicInfoPage = () => {
 
       // جمع جميع العلامات المعلقة لهذا الطالب
       const studentPendingGrades: Record<string, number> = {};
-      pendingGrades.forEach((gradeData, key) => {
+      pendingGrades.forEach((gradeData) => {
         if (gradeData.studentId === studentId) {
           studentPendingGrades[gradeData.gradeType] = gradeData.grade;
         }
@@ -942,9 +977,9 @@ const StudentAcademicInfoPage = () => {
         ...(existingRecord && {
           board_grades: existingRecord.board_grades,
           recitation_grades: existingRecord.recitation_grades,
-          first_exam_grades: existingRecord.first_exam_grades,
+          first_quiz_grade: existingRecord.first_quiz_grade,
           midterm_grades: existingRecord.midterm_grades,
-          second_exam_grades: existingRecord.second_exam_grades,
+          second_quiz_grade: existingRecord.second_quiz_grade,
           final_exam_grades: existingRecord.final_exam_grades,
           behavior_grade: existingRecord.behavior_grade,
           activity_grade: existingRecord.activity_grade,
@@ -955,16 +990,19 @@ const StudentAcademicInfoPage = () => {
         ...studentPendingGrades,
       };
 
-      console.log('📤 Sending to API:', academicData);
+      // Map to backend field names
+      const backendData = mapToBackendFields(academicData);
+
+      console.log('📤 Sending to API:', backendData);
 
       let savedRecord;
       // التحقق من وجود السجل وأن له ID صالح (أكبر من 0)
       if (existingRecord && existingRecord.id && existingRecord.id > 0) {
         console.log('🔄 Updating existing record:', existingRecord.id);
-        savedRecord = await retryWithTokenRefresh(() => api.students.updateAcademics(studentId, existingRecord.id, academicData));
+        savedRecord = await retryWithTokenRefresh(() => api.students.updateAcademics(studentId, existingRecord.id, backendData));
       } else {
         console.log('✨ Creating new record');
-        savedRecord = await retryWithTokenRefresh(() => api.students.createAcademics(studentId, academicData));
+        savedRecord = await retryWithTokenRefresh(() => api.students.createAcademics(studentId, backendData));
       }
 
       console.log('✅ Saved record response:', savedRecord);
@@ -1046,9 +1084,9 @@ const StudentAcademicInfoPage = () => {
             ...(existingRecord && {
               board_grades: existingRecord.board_grades,
               recitation_grades: existingRecord.recitation_grades,
-              first_exam_grades: existingRecord.first_exam_grades,
+              first_quiz_grade: existingRecord.first_quiz_grade,
               midterm_grades: existingRecord.midterm_grades,
-              second_exam_grades: existingRecord.second_exam_grades,
+              second_quiz_grade: existingRecord.second_quiz_grade,
               final_exam_grades: existingRecord.final_exam_grades,
               behavior_grade: existingRecord.behavior_grade,
               activity_grade: existingRecord.activity_grade,
@@ -1062,13 +1100,16 @@ const StudentAcademicInfoPage = () => {
             academicData[gradeType] = grade;
           });
 
-          console.log('📤 Sending to API:', academicData);
+          // Map to backend field names
+          const backendData = mapToBackendFields(academicData);
+
+          console.log('📤 Sending to API:', backendData);
 
           let savedRecord;
           if (existingRecord && existingRecord.id && existingRecord.id > 0) {
-            savedRecord = await retryWithTokenRefresh(() => api.students.updateAcademics(studentId, existingRecord.id, academicData));
+            savedRecord = await retryWithTokenRefresh(() => api.students.updateAcademics(studentId, existingRecord.id, backendData));
           } else {
-            savedRecord = await retryWithTokenRefresh(() => api.students.createAcademics(studentId, academicData));
+            savedRecord = await retryWithTokenRefresh(() => api.students.createAcademics(studentId, backendData));
           }
 
           console.log('✅ Saved successfully for student', studentId);
@@ -1145,9 +1186,9 @@ const StudentAcademicInfoPage = () => {
         ...(existingRecord && {
           board_grades: existingRecord.board_grades,
           recitation_grades: existingRecord.recitation_grades,
-          first_exam_grades: existingRecord.first_exam_grades,
+          first_quiz_grade: existingRecord.first_quiz_grade,
           midterm_grades: existingRecord.midterm_grades,
-          second_exam_grades: existingRecord.second_exam_grades,
+          second_quiz_grade: existingRecord.second_quiz_grade,
           final_exam_grades: existingRecord.final_exam_grades,
           behavior_grade: existingRecord.behavior_grade,
           activity_grade: existingRecord.activity_grade,
@@ -1264,11 +1305,16 @@ const StudentAcademicInfoPage = () => {
       
       const maxGrade = maxGrades[gradeType];
       
+      // تخطي العلامات الفارغة (undefined/null) من الحساب
+      if (grade === null || grade === undefined) {
+        return; // Skip this grade entirely
+      }
+      
       // التحقق من القيمة وتحويلها إلى رقم بشكل آمن
       const numGrade = Number(grade);
       const numMaxGrade = Number(maxGrade);
       
-      if (!isNaN(numGrade) && numGrade !== null && !isNaN(numMaxGrade) && numMaxGrade > 0) {
+      if (!isNaN(numGrade) && !isNaN(numMaxGrade) && numMaxGrade > 0) {
         // حساب النسبة المئوية لكل علامة
         const percentage = (numGrade / numMaxGrade) * 100;
         if (!isNaN(percentage)) {

@@ -196,7 +196,7 @@ export const TeacherAvailabilityPanel: React.FC<TeacherAvailabilityPanelProps> =
                     <TooltipTrigger asChild>
                       <div
                         className={cn(
-                          "h-6 rounded border cursor-pointer transition-all hover:scale-110",
+                          "h-6 rounded border cursor-pointer transition-colors",
                           color.bg,
                           color.border
                         )}
@@ -243,7 +243,7 @@ export const TeacherAvailabilityPanel: React.FC<TeacherAvailabilityPanelProps> =
     return (
       <Card
         key={teacher.id}
-        className="cursor-pointer hover:shadow-lg transition-all hover:scale-[1.02]"
+        className="cursor-pointer hover:shadow-md transition-shadow"
         onClick={() => handleTeacherClick(teacher)}
       >
         <CardContent className="p-4">

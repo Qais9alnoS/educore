@@ -10,16 +10,16 @@ const buttonVariants = cva(
     variants: {
       variant: {
         // iOS-style variants
-        default: "bg-primary text-primary-foreground shadow-ios hover:shadow-ios-lg active:scale-[0.98] active:shadow-none transition-all duration-200",
-        destructive: "bg-destructive text-destructive-foreground shadow-ios hover:shadow-ios-lg active:scale-[0.98] transition-all duration-200",
-        outline: "border border-input bg-background hover:bg-card-hover hover:text-accent-foreground shadow-ios active:scale-[0.98] transition-all duration-200",
-        secondary: "bg-secondary text-secondary-foreground shadow-ios hover:shadow-ios-lg active:scale-[0.98] transition-all duration-200",
-        ghost: "hover:bg-card-hover hover:text-accent-foreground active:scale-[0.98] transition-all duration-200",
+        default: "bg-primary text-primary-foreground shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200",
+        destructive: "bg-destructive text-destructive-foreground shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200",
+        outline: "border border-input bg-background hover:bg-muted text-foreground shadow-sm active:scale-[0.98] transition-all duration-200",
+        secondary: "bg-secondary text-secondary-foreground shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200",
+        ghost: "hover:bg-muted text-foreground active:scale-[0.98] transition-all duration-200",
         link: "text-primary underline-offset-4 hover:underline",
-        hero: "bg-gradient-hero text-white shadow-glow hover:shadow-elevation-3 active:scale-[0.98] transition-all duration-300",
+        hero: "bg-gradient-hero text-white shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-300",
         glass: "glass text-foreground backdrop-blur-md hover:backdrop-blur-lg active:scale-[0.98] transition-all duration-200",
-        accent: "bg-accent text-accent-foreground shadow-ios hover:shadow-ios-lg active:scale-[0.98] transition-all duration-200",
-        premium: "bg-gradient-primary text-primary-foreground shadow-glow hover:shadow-elevation-3 active:scale-[0.98] transition-all duration-300 border border-primary-glow/30",
+        accent: "bg-accent text-accent-foreground shadow-sm hover:shadow-md active:scale-[0.98] transition-all duration-200",
+        premium: "bg-gradient-primary text-primary-foreground shadow-md hover:shadow-lg active:scale-[0.98] transition-all duration-300 border border-primary/20",
       },
       size: {
         default: "h-11 px-5 py-2.5",

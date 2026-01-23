@@ -17,6 +17,7 @@ BASE_DIR = get_base_dir()
 class Settings:
     # Database (relative to exe/script location)
     DATABASE_URL: str = f"sqlite:///{BASE_DIR}/school_management.db"
+    DATABASE_PASSWORD: str = "altarbeeto3la-losi-fuck-you-fuck-you-fuck-you"  # SQLCipher encryption key
     
     # Security
     SECRET_KEY: str = "123456789"

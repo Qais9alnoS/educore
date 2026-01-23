@@ -189,6 +189,15 @@ async def health_check(db: Session = Depends(get_db)):
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
 
+@app.get("/version")
+async def get_version():
+    """Get current backend version"""
+    return {
+        "version": "1.0.0",
+        "backend_version": "1.0.0",
+        "api_version": "1.0.0"
+    }
+
 async def create_default_admin():
     """Create default admin user if none exists"""
     from app.database import SessionLocal

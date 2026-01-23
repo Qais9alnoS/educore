@@ -550,6 +550,18 @@ export const ParticipantSelectionDialog: React.FC<
           </DialogDescription>
         </DialogHeader>
 
+        {isActivityEnded && (
+          <div className="flex items-start gap-3 p-4 rounded-lg bg-yellow-50 border border-yellow-200 dark:bg-yellow-950/30 dark:border-yellow-800">
+            <AlertCircle className="h-5 w-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="font-medium text-yellow-900 dark:text-yellow-100">تنبيه: النشاط قد انتهى</p>
+              <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">
+                هذا النشاط قد انتهى (التاريخ المحدد قد مضى). يمكنك عرض المشاركين الحاليين فقط ولا يمكن إضافة أو تعديل المشاركين.
+              </p>
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -625,18 +637,23 @@ export const ParticipantSelectionDialog: React.FC<
                             return (
                               <div
                                 key={cls.id}
-                                className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                                  isSelected
-                                    ? "bg-primary/5 border-primary"
-                                    : "hover:bg-muted"
+                                className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                                  isActivityEnded
+                                    ? "cursor-not-allowed opacity-60 bg-muted"
+                                    : `cursor-pointer ${
+                                        isSelected
+                                          ? "bg-primary/5 border-primary"
+                                          : "hover:bg-muted"
+                                      }`
                                 }`}
-                                onClick={() => handleClassToggle(cls.id!)}
+                                onClick={() => !isActivityEnded && handleClassToggle(cls.id!)}
                               >
                                 <div className="flex items-center gap-3">
                                   <Checkbox
                                     checked={isSelected}
+                                    disabled={isActivityEnded}
                                     onCheckedChange={() =>
-                                      handleClassToggle(cls.id!)
+                                      !isActivityEnded && handleClassToggle(cls.id!)
                                     }
                                   />
                                   <div>
@@ -696,6 +713,7 @@ export const ParticipantSelectionDialog: React.FC<
                     <Button
                       variant="outline"
                       size="sm"
+                      disabled={isActivityEnded}
                       onClick={handleSelectAll}
                     >
                       تحديد الكل
@@ -703,6 +721,7 @@ export const ParticipantSelectionDialog: React.FC<
                     <Button
                       variant="outline"
                       size="sm"
+                      disabled={isActivityEnded}
                       onClick={handleDeselectAll}
                     >
                       إلغاء الكل
@@ -719,18 +738,23 @@ export const ParticipantSelectionDialog: React.FC<
                       return (
                         <div
                           key={student.id}
-                          className={`flex items-center justify-between p-3 rounded-lg border cursor-pointer transition-colors ${
-                            isSelected
-                              ? "bg-primary/5 border-primary"
-                              : "hover:bg-muted"
+                          className={`flex items-center justify-between p-3 rounded-lg border transition-colors ${
+                            isActivityEnded
+                              ? "cursor-not-allowed opacity-60 bg-muted"
+                              : `cursor-pointer ${
+                                  isSelected
+                                    ? "bg-primary/5 border-primary"
+                                    : "hover:bg-muted"
+                                }`
                           }`}
-                          onClick={() => handleStudentToggle(student.id!)}
+                          onClick={() => !isActivityEnded && handleStudentToggle(student.id!)}
                         >
                           <div className="flex items-center gap-3 flex-1">
                             <Checkbox
                               checked={isSelected}
+                              disabled={isActivityEnded}
                               onCheckedChange={() =>
-                                handleStudentToggle(student.id!)
+                                !isActivityEnded && handleStudentToggle(student.id!)
                               }
                             />
                             <div className="flex-1">
@@ -745,13 +769,16 @@ export const ParticipantSelectionDialog: React.FC<
                           <div className="flex items-center gap-3">
                             {isSelected && (
                               <div
-                                className="flex items-center gap-2 px-2 py-1 rounded border bg-white dark:bg-gray-800"
+                                className={`flex items-center gap-2 px-2 py-1 rounded border bg-white dark:bg-gray-800 ${
+                                  isActivityEnded ? "cursor-not-allowed opacity-60" : ""
+                                }`}
                                 onClick={(e) =>
-                                  handlePaymentStatusToggle(student.id!, e)
+                                  !isActivityEnded && handlePaymentStatusToggle(student.id!, e)
                                 }
                               >
                                 <Checkbox
                                   checked={hasPaid}
+                                  disabled={isActivityEnded}
                                   onCheckedChange={() => {}}
                                 />
                                 <span
@@ -793,7 +820,7 @@ export const ParticipantSelectionDialog: React.FC<
               <Button
                 onClick={handleSave}
                 disabled={
-                  saving || selectedStudents.size === 0 || isMaxExceeded
+                  saving || selectedStudents.size === 0 || isMaxExceeded || isActivityEnded
                 }
               >
                 {saving ? (

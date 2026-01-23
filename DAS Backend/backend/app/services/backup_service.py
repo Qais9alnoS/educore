@@ -1,7 +1,6 @@
 import os
 import shutil
 import zipfile
-import sqlite3
 import json
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict, Any
@@ -10,6 +9,13 @@ import logging
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.query import Query
 from sqlalchemy import text
+
+# Import SQLCipher instead of regular SQLite
+try:
+    import sqlcipher3 as sqlite3
+except ImportError:
+    import sqlite3
+    print("Warning: sqlcipher3-wheels not found. Using regular sqlite3. Database backups will not be encrypted.")
 
 from ..config import settings
 from ..database import engine, SessionLocal
@@ -40,9 +46,14 @@ class BackupService:
             
             backup_path = self.db_backup_dir / f"{backup_name}.sqlite"
             
-            # Create database backup using SQLite backup API
+            # Create database backup using SQLCipher backup API
             source_db = sqlite3.connect(settings.DATABASE_URL.replace("sqlite:///", ""))
+            source_cursor = source_db.cursor()
+            source_cursor.execute(f"PRAGMA key='{settings.DATABASE_PASSWORD}'")
+            
             backup_db = sqlite3.connect(str(backup_path))
+            backup_cursor = backup_db.cursor()
+            backup_cursor.execute(f"PRAGMA key='{settings.DATABASE_PASSWORD}'")
             
             source_db.backup(backup_db)
             source_db.close()
@@ -227,6 +238,7 @@ class BackupService:
             current_backup = self.create_database_backup(f"pre_restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}")
             
             # Replace current database with backup
+            # Note: The backup file is already encrypted with the same key
             current_db_path = settings.DATABASE_URL.replace("sqlite:///", "")
             shutil.copy2(backup_path, current_db_path)
             

@@ -1,0 +1,125 @@
+name: Release Build and Deploy
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version number (e.g., 1.0.1)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+  id-token: write
+  packages: write
+
+env:
+  TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+  TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+jobs:
+  build-backend:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        working-directory: DAS Backend/backend
+        run: |
+          python -m venv venv
+          .\venv\Scripts\Activate.ps1
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Build Backend
+        working-directory: DAS Backend/backend
+        run: |
+          .\venv\Scripts\Activate.ps1
+          python -m PyInstaller das_backend.spec --clean --noconfirm
+
+      - name: Upload Backend Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-exe
+          path: DAS Backend/backend/dist/school-management-backend-x86_64-pc-windows-msvc.exe
+          retention-days: 1
+
+  build-and-release:
+    needs: build-backend
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Download Backend Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-exe
+          path: DAS Frontend/src-tauri/binaries
+
+      - name: Rename Backend for Tauri
+        working-directory: DAS Frontend/src-tauri/binaries
+        run: |
+          Rename-Item -Path "school-management-backend-x86_64-pc-windows-msvc.exe" -NewName "das-backend-x86_64-pc-windows-msvc.exe"
+
+      - name: Install Frontend Dependencies
+        working-directory: DAS Frontend
+        run: npm install
+
+      - name: Build Tauri App
+        working-directory: DAS Frontend
+        run: npm run tauri build
+        env:
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+
+      - name: Get Version
+        id: version
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $version = "${{ github.event.inputs.version }}"
+          } else {
+            $version = "${{ github.ref_name }}".TrimStart("v")
+          }
+          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          echo "Version: $version"
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          name: Release v${{ steps.version.outputs.VERSION }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            DAS Frontend/src-tauri/target/release/bundle/msi/*.msi
+            DAS Frontend/src-tauri/target/release/bundle/msi/*.msi.zip
+            DAS Frontend/src-tauri/target/release/bundle/msi/*.msi.zip.sig
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload Update Manifest
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ steps.version.outputs.VERSION }}
+          files: DAS Frontend/src-tauri/target/release/bundle/msi/*.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

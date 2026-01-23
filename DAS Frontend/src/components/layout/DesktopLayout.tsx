@@ -23,12 +23,12 @@ const DesktopLayout = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background" dir="rtl">
+    <div className="fixed top-12 left-0 right-0 bottom-0 flex flex-col bg-background" dir="rtl">
       {/* Main content area - header is now in CustomTitleBar */}
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - positioned on the right for RTL layout */}
         {showSidebar && (
-          <div className="h-full flex relative">
+          <div className="h-full flex relative pr-4 pb-4">
             <Sidebar
               isCollapsed={isSidebarCollapsed}
               setIsCollapsed={setIsSidebarCollapsed}

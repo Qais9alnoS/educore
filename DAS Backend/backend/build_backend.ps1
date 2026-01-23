@@ -1,8 +1,8 @@
-# Build script for DAS Backend
+# Build script for School Management Backend
 # This script compiles the Python backend into a single executable using PyInstaller
 
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "DAS Backend - Build Script" -ForegroundColor Cyan
+Write-Host "School Management Backend - Build Script" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -26,12 +26,12 @@ try {
 Write-Host "[3/3] Building executable..." -ForegroundColor Yellow
 python -m PyInstaller das_backend.spec --clean --noconfirm
 
-if (Test-Path "dist\das-backend.exe") {
+if (Test-Path "dist\school-management-backend-x86_64-pc-windows-msvc.exe") {
     Write-Host ""
     Write-Host "========================================" -ForegroundColor Green
     Write-Host "✓ Build successful!" -ForegroundColor Green
     Write-Host "========================================" -ForegroundColor Green
-    Write-Host "Executable location: dist\das-backend.exe"
+    Write-Host "Executable location: dist\school-management-backend-x86_64-pc-windows-msvc.exe"
     Write-Host ""
 } else {
     Write-Host ""

@@ -256,3 +256,8 @@ src-tauri/target/debug/bundle/
 
 # Uploads directory (if you want to ignore uploaded files)
 uploads/
+
+# Tauri updater private keys - NEVER commit these!
+*.key
+updater-keys.key
+**/updater-keys.key

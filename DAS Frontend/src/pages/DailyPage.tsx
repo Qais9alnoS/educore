@@ -270,6 +270,7 @@ export default function DailyPage() {
               academicYearId={academicYear.id}
               sessionType={sessionType}
               selectedDate={selectedDate}
+              academicYearRange={academicYearRange}
             />
           </TabsContent>
 

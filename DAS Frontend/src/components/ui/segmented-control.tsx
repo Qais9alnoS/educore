@@ -78,7 +78,7 @@ const SegmentedControl = React.forwardRef<HTMLDivElement, SegmentedControlProps>
               "relative z-10 flex-1 px-4 py-2 text-sm font-medium rounded-xl transition-colors duration-200",
               value === option.value
                 ? "text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground"
+                : "text-muted-foreground"
             )}
             onClick={() => onValueChange(option.value)}
           >

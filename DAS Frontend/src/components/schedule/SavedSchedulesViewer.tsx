@@ -11,12 +11,6 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   Dialog,
   DialogContent,
   DialogHeader,
@@ -25,10 +19,7 @@ import {
 import { ConfirmationDialog } from '@/components/ui/confirmation-dialog';
 import {
   Calendar,
-  Eye,
-  Download,
   Trash2,
-  MoreVertical,
   Loader2,
   FileText,
   CheckCircle2,
@@ -370,7 +361,11 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
               </TableHeader>
               <TableBody>
                 {schedules.map((schedule) => (
-                  <TableRow key={`${schedule.class_id}-${schedule.section}`}>
+                  <TableRow 
+                    key={`${schedule.class_id}-${schedule.section}`}
+                    className="cursor-pointer hover:bg-muted/50 transition-colors"
+                    onClick={() => handleViewSchedule(schedule)}
+                  >
                     <TableCell className="font-medium text-right">
                       الصف {schedule.class_id}
                     </TableCell>
@@ -389,31 +384,15 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
                   <TableCell className="text-sm text-muted-foreground">
                     {new Date(schedule.created_at).toLocaleDateString('ar-SA')}
                   </TableCell>
-                  <TableCell>
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm">
-                          <MoreVertical className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => handleViewSchedule(schedule)}>
-                          <Eye className="h-4 w-4 ml-2" />
-                          عرض الجدول
-                        </DropdownMenuItem>
-                        <DropdownMenuItem>
-                          <Download className="h-4 w-4 ml-2" />
-                          تصدير
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          className="text-red-600"
-                          onClick={() => handleDeleteSchedule(schedule)}
-                        >
-                          <Trash2 className="h-4 w-4 ml-2" />
-                          حذف
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                  <TableCell onClick={(e) => e.stopPropagation()}>
+                    <Button 
+                      variant="ghost" 
+                      size="sm"
+                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                      onClick={() => handleDeleteSchedule(schedule)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))}

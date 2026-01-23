@@ -7,11 +7,12 @@ import { Toaster } from '@/components/ui/toaster';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { AuthProvider, useAuth, ProtectedRoute } from '@/contexts/AuthContext';
 import { ProjectProvider } from '@/contexts/ProjectContext';
+import { ZoomProvider } from '@/contexts/ZoomContext';
 import { DesktopLayout } from '@/components/layout/DesktopLayout';
 import { SplashScreen } from '@/components/SplashScreen';
 import { FirstRunSetup } from '@/components/FirstRunSetup';
 import CustomTitleBar from '@/components/layout/CustomTitleBar';
-import { AcademicYearManagementPage, DashboardPage, StudentPersonalInfoPage, StudentAcademicInfoPage, SchoolInfoManagementPage, ActivitiesManagementPage, AddEditGradePage, TeacherManagementPage, ScheduleManagementPage, UserManagementPage } from '@/pages';
+import { AcademicYearManagementPage, DashboardPage, StudentPersonalInfoPage, StudentAcademicInfoPage, SchoolInfoManagementPage, ActivitiesManagementPage, AddEditGradePage, TeacherManagementPage, ScheduleManagementPage, UserManagementPage, SettingsPage } from '@/pages';
 import LoginPage from '@/pages/LoginPage';
 import NotFound from '@/pages/NotFound';
 import DirectorNotesPage from '@/pages/DirectorNotesPage';
@@ -332,6 +333,18 @@ const ProtectedApp = () => {
             </ProtectedRoute>
           }
         />
+        {/* Settings - Available to all non-director roles, director can also access */}
+        <Route
+          path="settings"
+          element={
+            <ProtectedRoute 
+              allowedRoles={['director', 'finance', 'morning_school', 'evening_school', 'morning_supervisor', 'evening_supervisor']} 
+              fallback={<AccessDenied />}
+            >
+              <SettingsPage />
+            </ProtectedRoute>
+          }
+        />
         {/* Catch-all for undefined routes */}
         <Route path="*" element={<NotFound />} />
       </Route>
@@ -428,10 +441,21 @@ const YearSelectionCheck = () => {
 
 const AppContent = () => {
   const [showSplash, setShowSplash] = useState(true);
+  const [contentVisible, setContentVisible] = useState(false);
 
   const handleSplashComplete = () => {
     setShowSplash(false);
   };
+
+  useEffect(() => {
+    if (showSplash) {
+      setContentVisible(false);
+      return;
+    }
+
+    const timer = requestAnimationFrame(() => setContentVisible(true));
+    return () => cancelAnimationFrame(timer);
+  }, [showSplash]);
 
   // Disable right-click context menu globally for native app feel
   useEffect(() => {
@@ -447,30 +471,32 @@ const AppContent = () => {
     };
   }, []);
 
-  // Show splash screen with minimal title bar (only nav buttons)
-  if (showSplash) {
-    return (
-      <>
-        <CustomTitleBar mode="splash" />
-        <div className="pt-12">
-          <SplashScreen onComplete={handleSplashComplete} />
-        </div>
-      </>
-    );
-  }
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <ProjectProvider>
-            <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
-              <TitleBarWithRouting />
-            </Router>
-          </ProjectProvider>
-        </AuthProvider>
-      </TooltipProvider>
-    </QueryClientProvider>
+    <Router future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+      <ZoomProvider>
+        {/* Show splash screen with minimal title bar (only nav buttons) */}
+        {showSplash ? (
+          <>
+            <CustomTitleBar mode="splash" />
+            <div className="pt-12">
+              <SplashScreen onComplete={handleSplashComplete} />
+            </div>
+          </>
+        ) : (
+          <div className={`transition-opacity duration-700 ease-out ${contentVisible ? 'opacity-100' : 'opacity-0'}`}>
+            <QueryClientProvider client={queryClient}>
+              <TooltipProvider>
+                <AuthProvider>
+                  <ProjectProvider>
+                    <TitleBarWithRouting />
+                  </ProjectProvider>
+                </AuthProvider>
+              </TooltipProvider>
+            </QueryClientProvider>
+          </div>
+        )}
+      </ZoomProvider>
+    </Router>
   );
 };
 

@@ -321,9 +321,6 @@ export const TeacherScheduleTab: React.FC<TeacherScheduleTabProps> = ({ teacher,
             setAssignmentToDelete(null);
         }
     };
-            setLoading(false);
-        }
-    };
 
     // Helper function to calculate total weekly hours
     const calculateTotalWeeklyHours = () => {

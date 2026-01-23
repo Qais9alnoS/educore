@@ -7,8 +7,10 @@ import { analyticsApi } from '@/services/api';
 interface GradeData {
   assignment_type: string;
   assignment_number: number;
-  morning_average: number;
-  evening_average: number;
+  morning_sum: number;
+  morning_count: number;
+  evening_sum: number;
+  evening_count: number;
   subject_name: string;
 }
 
@@ -34,13 +36,7 @@ const SchoolGradesChart: React.FC<SchoolGradesChartProps> = ({
       const response = await analyticsApi.getSchoolGrades(academicYearId);
       const data = response.data as GradeData[] || [];
 
-      // Process and sort data
-      const processedData = data.map(item => ({
-        ...item,
-        morning_average: Math.round(item.morning_average * 100) / 100,
-        evening_average: Math.round(item.evening_average * 100) / 100
-      }));
-      setGradesData(processedData);
+      setGradesData(data);
 
     } catch (error) {
 
@@ -58,13 +54,17 @@ const SchoolGradesChart: React.FC<SchoolGradesChartProps> = ({
       acc[key] = {
         assignment_type: item.assignment_type,
         assignment_number: item.assignment_number,
-        morning_averages: [],
-        evening_averages: [],
+        morning_sum: 0,
+        morning_count: 0,
+        evening_sum: 0,
+        evening_count: 0,
         subjects: []
       };
     }
-    acc[key].morning_averages.push(item.morning_average);
-    acc[key].evening_averages.push(item.evening_average);
+    acc[key].morning_sum += item.morning_sum;
+    acc[key].morning_count += item.morning_count;
+    acc[key].evening_sum += item.evening_sum;
+    acc[key].evening_count += item.evening_count;
     acc[key].subjects.push(item.subject_name);
     return acc;
   }, {} as Record<string, any>);
@@ -72,8 +72,8 @@ const SchoolGradesChart: React.FC<SchoolGradesChartProps> = ({
   // Calculate overall averages and sort
   const processedGroups = Object.values(groupedData).map((group: any) => ({
     ...group,
-    morning_average: group.morning_averages.reduce((sum: number, val: number) => sum + val, 0) / group.morning_averages.length,
-    evening_average: group.evening_averages.reduce((sum: number, val: number) => sum + val, 0) / group.evening_averages.length,
+    morning_average: group.morning_count > 0 ? Math.round((group.morning_sum / group.morning_count) * 10) / 10 : 0,
+    evening_average: group.evening_count > 0 ? Math.round((group.evening_sum / group.evening_count) * 10) / 10 : 0,
     subject_count: group.subjects.length
   })).sort((a: any, b: any) => {
     // Sort by assignment type (مذاكرة first, then امتحان)

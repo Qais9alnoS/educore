@@ -246,7 +246,7 @@ const DirectorNotesPage: React.FC = () => {
         {categories.map((cat) => (
           <Card
             key={cat.category}
-            className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
+            className="cursor-pointer hover:shadow-md transition-shadow duration-200"
             onClick={() => handleCategoryClick(cat.category)}
           >
             <CardHeader>
@@ -285,7 +285,7 @@ const DirectorNotesPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Rewards Card */}
         <Card
-          className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
+          className="cursor-pointer hover:shadow-md transition-shadow duration-200"
           onClick={handleRewardsClick}
         >
           <CardHeader>
@@ -320,7 +320,7 @@ const DirectorNotesPage: React.FC = () => {
 
         {/* Assistance Card */}
         <Card
-          className="cursor-pointer hover:shadow-lg transition-all duration-200 hover:scale-[1.02]"
+          className="cursor-pointer hover:shadow-md transition-shadow duration-200"
           onClick={handleAssistanceClick}
         >
           <CardHeader>

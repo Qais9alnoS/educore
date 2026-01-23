@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Calendar, ChevronLeft, ChevronRight, X, AlertCircle, CalendarDays } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight, X, AlertCircle, CalendarDays, ArrowRight } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../ui/card';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '../ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { Alert, AlertDescription } from '../ui/alert';
 import { ConfirmationDialog } from '../ui/confirmation-dialog';
+import { AcademicYearDatePicker } from '../ui/academic-year-date-picker';
 import { useToast } from '@/hooks/use-toast';
 import api from '@/services/api';
 
@@ -23,6 +25,7 @@ interface HolidayManagementProps {
   academicYearId: number;
   sessionType: 'morning' | 'evening';
   selectedDate: string;
+  academicYearRange?: { start: number; end: number } | null;
 }
 
 interface DailySummary {
@@ -31,7 +34,7 @@ interface DailySummary {
   total_actions: number;
 }
 
-export function HolidayManagement({ academicYearId, sessionType, selectedDate: propSelectedDate }: HolidayManagementProps) {
+export function HolidayManagement({ academicYearId, sessionType, selectedDate: propSelectedDate, academicYearRange }: HolidayManagementProps) {
   const { toast } = useToast();
   const [holidays, setHolidays] = useState<Holiday[]>([]);
   const [selectedDate, setSelectedDate] = useState<string>('');
@@ -45,6 +48,7 @@ export function HolidayManagement({ academicYearId, sessionType, selectedDate: p
   const [holidayToDelete, setHolidayToDelete] = useState<Holiday | null>(null);
   const [pastDateConfirmOpen, setPastDateConfirmOpen] = useState(false);
   const [pendingPastDate, setPendingPastDate] = useState<string | null>(null);
+  const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
     fetchHolidays();
@@ -221,16 +225,48 @@ export function HolidayManagement({ academicYearId, sessionType, selectedDate: p
     return dates;
   };
 
+  const canGoToPreviousMonth = (): boolean => {
+    if (!academicYearRange) return true;
+    const prevMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1);
+    const minDate = new Date(academicYearRange.start, 0, 1);
+    return prevMonth >= minDate;
+  };
+
+  const canGoToNextMonth = (): boolean => {
+    if (!academicYearRange) return true;
+    const nextMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1);
+    const maxDate = new Date(academicYearRange.end, 11, 31);
+    return nextMonth <= maxDate;
+  };
+
   const goToPreviousMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    if (canGoToPreviousMonth()) {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() - 1, 1));
+    }
   };
 
   const goToNextMonth = () => {
-    setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    if (canGoToNextMonth()) {
+      setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + 1, 1));
+    }
   };
 
   const goToToday = () => {
-    setCurrentMonth(new Date());
+    const today = new Date();
+    if (!academicYearRange) {
+      setCurrentMonth(today);
+      return;
+    }
+    const minDate = new Date(academicYearRange.start, 0, 1);
+    const maxDate = new Date(academicYearRange.end, 11, 31);
+    if (today >= minDate && today <= maxDate) {
+      setCurrentMonth(today);
+    }
+  };
+
+  const handleDatePickerSelect = (date: Date) => {
+    setCurrentMonth(date);
+    setShowDatePicker(false);
   };
 
   const isHoliday = (dateStr: string, dateObj?: Date) => {
@@ -298,158 +334,169 @@ export function HolidayManagement({ academicYearId, sessionType, selectedDate: p
               قم بإضافة أو إزالة أيام العطل للفترة {sessionType === 'morning' ? 'الصباحية' : 'المسائية'}
             </CardDescription>
           </div>
-          <Button
-            onClick={goToToday}
-            variant="outline"
-            size="sm"
-          >
-            <CalendarDays className="w-4 h-4 ml-2" />
-            العودة لليوم
-          </Button>
         </div>
       </CardHeader>
       <CardContent className="pt-6">
-        {/* شريط التنقل بين الأشهر - محسّن */}
-        <div className="flex items-center justify-between mb-6 p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-2xl border border-primary/20">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={goToPreviousMonth}
-            className="h-9 w-9 p-0 hover:bg-primary/10 transition-all"
-          >
-            <ChevronRight className="h-5 w-5 text-primary" />
-          </Button>
+        {/* Calendar Container */}
+        <div className="space-y-0">
+          {/* Calendar Card Wrapper */}
+          <div className="rounded-3xl border border-border bg-background overflow-hidden">
+            {/* Header with Month/Year Navigation */}
+            <div className="flex items-center justify-between gap-3 p-6 border-b border-border bg-muted/40">
+              {/* Previous Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={goToPreviousMonth}
+                disabled={!canGoToPreviousMonth()}
+                className="h-10 w-10 p-0 rounded-2xl hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronLeft className="h-5 w-5 text-primary" />
+              </Button>
 
-          <div className="text-center flex-1 cursor-pointer group">
-            <h3 className="text-lg font-bold text-foreground group-hover:text-primary transition-colors">
-              {formatMonthYear(currentMonth)}
-            </h3>
-            {currentMonth.getMonth() === today.getMonth() &&
-             currentMonth.getFullYear() === today.getFullYear() && (
-              <p className="text-xs text-accent font-medium mt-1">
-                {getArabicDayName(today)} - {today.getDate()}
-              </p>
-            )}
+              {/* Month/Year Display - Clickable for date picker */}
+              <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
+                <PopoverTrigger asChild>
+                  <button className="flex-1 text-center py-3 px-4 hover:bg-muted transition-colors rounded-2xl group">
+                    <div className="text-lg font-bold text-foreground">
+                      {formatMonthYear(currentMonth)}
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">
+                      اختر الشهر والسنة
+                    </div>
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0 border shadow-lg rounded-3xl" align="center">
+                  {academicYearRange && (
+                    <AcademicYearDatePicker
+                      minYear={academicYearRange.start}
+                      maxYear={academicYearRange.end}
+                      selected={currentMonth}
+                      onSelect={handleDatePickerSelect}
+                    />
+                  )}
+                </PopoverContent>
+              </Popover>
+
+              {/* Next Button */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={goToNextMonth}
+                disabled={!canGoToNextMonth()}
+                className="h-10 w-10 p-0 rounded-2xl hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+              >
+                <ChevronRight className="h-5 w-5 text-primary" />
+              </Button>
+            </div>
+
+            {/* Day headers */}
+            <div className="grid grid-cols-7 gap-0 border-b border-border bg-background">
+              {['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'].map((day, idx) => (
+                <div
+                  key={day}
+                  className={`text-center font-semibold text-xs py-3 text-muted-foreground ${
+                    idx !== 6 ? 'border-r border-border' : ''
+                  }`}
+                >
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div className="divide-y divide-border">
+              {Array.from({ length: Math.ceil(generateCalendarDates().length / 7) }).map((_, weekIdx) => (
+                <div key={`week-${weekIdx}`} className="grid grid-cols-7 gap-0 divide-x divide-border">
+                  {generateCalendarDates().slice(weekIdx * 7, (weekIdx + 1) * 7).map((date, dayIdx) => {
+                    if (!date) {
+                      return (
+                        <div
+                          key={`empty-${weekIdx}-${dayIdx}`}
+                          className="aspect-square bg-muted/20 p-0"
+                        />
+                      );
+                    }
+
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    const dateStr = `${year}-${month}-${day}`;
+                    const { isHoliday: isHol, isDefault, holiday } = isHoliday(dateStr, date);
+                    const isTodayDate = isToday(date);
+                    const isSelected = isSelectedDate(date);
+
+                    return (
+                      <button
+                        key={dateStr}
+                        onClick={() => handleDateClick(dateStr)}
+                        className={`
+                          aspect-square p-2 font-semibold transition-colors duration-200 relative
+                          flex flex-col items-center justify-center gap-0.5 text-center
+                          border-0 overflow-hidden group
+                          ${
+                            isSelected
+                              ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                              : isHol
+                              ? 'bg-yellow-50/70 dark:bg-yellow-950/15 text-yellow-800 dark:text-yellow-200 hover:bg-yellow-100/50 dark:hover:bg-yellow-900/20'
+                                : isTodayDate
+                                  ? 'bg-accent/20 text-foreground hover:bg-accent/30'
+                                  : 'bg-background text-foreground hover:bg-muted'
+                          }
+                          disabled:opacity-50 disabled:cursor-not-allowed
+                        `}
+                        title={holiday?.holiday_name || (isDefault ? 'عطلة نهاية الأسبوع' : '')}
+                      >
+                        <span className="text-sm font-bold leading-tight">{date.getDate()}</span>
+                        {isHol && (
+                          <span className="text-xs leading-none">
+                            {isDefault ? '●' : '◆'}
+                          </span>
+                        )}
+                        {!isDefault && holiday?.holiday_name && (
+                          <span className="text-[8px] font-semibold line-clamp-1 w-full leading-tight">
+                            {holiday.holiday_name}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={goToNextMonth}
-            className="h-9 w-9 p-0 hover:bg-primary/10 transition-all"
-          >
-            <ChevronLeft className="h-5 w-5 text-primary" />
-          </Button>
-        </div>
-
-        {/* أسماء الأيام */}
-        <div className="grid grid-cols-7 gap-2 mb-3">
-          {['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'].map((day, idx) => (
-            <div
-              key={day}
-              className="text-center font-semibold text-xs py-2 rounded-lg text-muted-foreground hover:text-primary transition-colors"
-              title={['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'][idx]}
-            >
-              {day}
-            </div>
-          ))}
-        </div>
-
-        {/* أيام التقويم - تصميم محسّن */}
-        <div className="grid grid-cols-7 gap-2 p-3 bg-muted/30 rounded-2xl border border-border/50">
-          {generateCalendarDates().map((date, index) => {
-            if (!date) {
-              return <div key={`empty-${index}`} className="aspect-square" />;
-            }
-
-            // استخدام التوقيت المحلي بدلاً من UTC
-            const year = date.getFullYear();
-            const month = String(date.getMonth() + 1).padStart(2, '0');
-            const day = String(date.getDate()).padStart(2, '0');
-            const dateStr = `${year}-${month}-${day}`;
-            const { isHoliday: isHol, isDefault, holiday } = isHoliday(dateStr, date);
-            const isTodayDate = isToday(date);
-            const isSelected = isSelectedDate(date);
-
-            return (
-              <button
-                key={dateStr}
-                onClick={() => handleDateClick(dateStr)}
-                className={`
-                  aspect-square p-2 text-center rounded-xl font-semibold text-sm
-                  transition-all duration-200 relative overflow-hidden group
-                  ${
-                    isSelected
-                      ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40'
-                      : isHol
-                        ? 'bg-accent/20 text-accent hover:bg-accent/30 border border-accent/40'
-                        : 'bg-card text-foreground hover:bg-primary/10 border border-border/50'
-                  }
-                  ${
-                    isTodayDate && !isSelected
-                      ? 'ring-2 ring-accent ring-offset-2 ring-offset-background'
-                      : ''
-                  }
-                  disabled:opacity-50 disabled:cursor-not-allowed
-                `}
-                title={holiday?.holiday_name || (isDefault ? 'عطلة نهاية الأسبوع' : '')}
-              >
-                <div className="flex flex-col items-center gap-0.5">
-                  <span className="font-bold">{date.getDate()}</span>
-                  {isHol && (
-                    <>
-                      <span className="text-[8px] font-semibold opacity-75">
-                        {isDefault ? '●' : '◆'}
-                      </span>
-                      {!isDefault && (
-                        <span className="text-[7px] font-semibold opacity-75 line-clamp-1 w-full">
-                          {holiday?.holiday_name || 'عطلة'}
-                        </span>
-                      )}
-                    </>
-                  )}
+          {/* Legend - Outside the calendar card */}
+          <div className="mt-6 p-6 rounded-3xl border border-border bg-card">
+            <p className="text-sm font-semibold text-foreground mb-4 flex items-center gap-2">
+              <Calendar className="w-4 h-4" />
+              دليل الألوان والرموز
+            </p>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-background border-2 border-border flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-semibold text-foreground">1</span>
                 </div>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* تنبيه الخطأ */}
-        {error && (
-          <Alert className="mt-4 border-accent bg-accent/10">
-            <AlertCircle className="h-4 w-4 text-accent" />
-            <AlertDescription className="text-accent-foreground">
-              {error}
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* معلومات توضيحية - محسّنة */}
-        <div className="mt-6 p-4 bg-gradient-to-r from-primary/5 to-accent/5 rounded-2xl border border-primary/20">
-          <p className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-            <Calendar className="w-4 h-4 text-primary" />
-            دليل الألوان والرموز
-          </p>
-          <div className="grid grid-cols-2 gap-3 text-xs text-muted-foreground">
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-card border border-border/50"></div>
-              <span>يوم عادي</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-accent/20 border border-accent/40 flex items-center justify-center text-[10px]">
-                ●
+                <span className="text-sm text-muted-foreground">يوم عادي</span>
               </div>
-              <span>عطلة</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-primary text-primary-foreground font-bold text-sm flex items-center justify-center">
-                ●
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-accent/20 border-2 border-accent flex items-center justify-center flex-shrink-0">
+                  <span className="text-base text-accent">●</span>
+                </div>
+                <span className="text-sm text-muted-foreground">اليوم</span>
               </div>
-              <span>مختار</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-6 rounded-lg bg-card ring-2 ring-accent ring-offset-2 ring-offset-background"></div>
-              <span>اليوم</span>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-yellow-50/70 dark:bg-yellow-950/15 border-2 border-yellow-400/40 text-yellow-800 dark:text-yellow-200 flex items-center justify-center flex-shrink-0 text-base">
+                  ●
+                </div>
+                <span className="text-sm text-muted-foreground">عطلة</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary border-2 border-primary text-primary-foreground flex items-center justify-center flex-shrink-0 text-xs font-bold">
+                  ●
+                </div>
+                <span className="text-sm text-muted-foreground">مختار</span>
+              </div>
             </div>
           </div>
         </div>

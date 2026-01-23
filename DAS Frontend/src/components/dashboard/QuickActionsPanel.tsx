@@ -229,7 +229,7 @@ export const QuickActionsPanel: React.FC<QuickActionsPanelProps> = ({
             <Button
               key={index}
               variant="ghost"
-              className={`h-auto flex-col gap-1.5 p-2.5 hover:scale-105 transition-transform ${action.color} border border-transparent hover:border-current`}
+              className={`h-auto flex-col gap-1.5 p-2.5 ${action.color} border border-border/20 hover:border-border/40 transition-colors`}
               onClick={() => navigate(action.path)}
             >
               <action.icon className="h-4 w-4" />

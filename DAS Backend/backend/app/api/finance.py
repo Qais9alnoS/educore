@@ -1544,7 +1544,12 @@ async def add_student_payment(
             print(f"Warning: Could not validate payment for student {student_id}: {str(e)}")
     
     payment_data.student_id = student_id
+    
+    # Set payment status to completed so it gets counted in balance calculations
     new_payment = StudentPayment(**payment_data.dict())
+    if not new_payment.payment_status or new_payment.payment_status == "pending":
+        new_payment.payment_status = "completed"
+    
     db.add(new_payment)
     db.commit()
     db.refresh(new_payment)
@@ -1552,6 +1557,7 @@ async def add_student_payment(
     return {"message": "Payment recorded successfully", "payment": new_payment}
 
 # Finance Cards Management
+# ... (rest of the code remains the same)
 @router.get("/cards", response_model=List[FinanceCardResponse])
 async def get_finance_cards(
     academic_year_id: int = Query(...),

@@ -28,6 +28,32 @@ const initialState: AuthState = {
     error: null,
 };
 
+// Initialize auth state from localStorage (for "remember me" sessions)
+const getInitialAuthState = (): AuthState => {
+    if (typeof window === 'undefined') {
+        return initialState;
+    }
+
+    try {
+        const stored = localStorage.getItem('das_auth');
+        if (!stored) return initialState;
+
+        const parsed = JSON.parse(stored) as { token: string; user: AuthResponse['user'] };
+        if (parsed?.token && parsed?.user) {
+            return {
+                ...initialState,
+                user: parsed.user,
+                token: parsed.token,
+                isAuthenticated: true,
+            };
+        }
+    } catch (_err) {
+        localStorage.removeItem('das_auth');
+    }
+
+    return initialState;
+};
+
 // Auth Reducer
 const authReducer = (state: AuthState, action: AuthAction): AuthState => {
     switch (action.type) {
@@ -72,7 +98,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
 // Auth Context
 interface AuthContextType {
     state: AuthState;
-    login: (credentials: LoginCredentials) => Promise<void>;
+    login: (credentials: LoginCredentials, options?: { remember?: boolean }) => Promise<void>;
     logout: () => void;
     clearError: () => void;
     hasRole: (role: UserRole) => boolean;
@@ -84,26 +110,37 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Auth Provider Component
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-    const [state, dispatch] = useReducer(authReducer, initialState);
+    const [state, dispatch] = useReducer(authReducer, initialState, getInitialAuthState);
 
-    // No automatic login - user must login manually each time
-    // Clear any stored tokens on mount to ensure fresh login
+    // Keep API client token in sync with auth state (including initial load)
     useEffect(() => {
-        localStorage.removeItem('das_token');
-        localStorage.removeItem('das_user');
-        setApiToken(null); // Clear token from API client
-    }, []);
+        if (state.token && state.isAuthenticated) {
+            setApiToken(state.token);
+        } else {
+            setApiToken(null);
+        }
+    }, [state.token, state.isAuthenticated]);
 
-    const login = async (credentials: LoginCredentials) => {
+    const login = async (credentials: LoginCredentials, options?: { remember?: boolean }) => {
         try {
             dispatch({ type: 'AUTH_START' });
             const response = await authApi.login(credentials);
 
             if (response.success && response.data) {
-                // Do NOT store in localStorage - user must login manually each time
-                // Only keep in memory for current session
                 setApiToken(response.data.access_token); // Set token for API client
                 dispatch({ type: 'AUTH_SUCCESS', payload: response.data });
+                // Persist if requested
+                if (options?.remember) {
+                    localStorage.setItem(
+                        'das_auth',
+                        JSON.stringify({
+                            token: response.data.access_token,
+                            user: response.data.user
+                        })
+                    );
+                } else {
+                    localStorage.removeItem('das_auth');
+                }
             } else {
                 // Handle failed login (wrong credentials) without console error
                 dispatch({
@@ -133,6 +170,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     type: 'AUTH_SUCCESS',
                     payload: response.data
                 });
+                const stored = localStorage.getItem('das_auth');
+                if (stored) {
+                    localStorage.setItem(
+                        'das_auth',
+                        JSON.stringify({
+                            token: response.data.access_token,
+                            user: response.data.user
+                        })
+                    );
+                }
             } else {
                 throw new Error(response.message || 'Token refresh failed');
             }
@@ -174,8 +221,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Silently fail - logout should always succeed locally
             // This handles cases where token is invalid (e.g., after username change)
         } finally {
-            localStorage.removeItem('das_token');
-            localStorage.removeItem('das_user');
+            localStorage.removeItem('das_auth');
             setApiToken(null); // Clear token from API client
             dispatch({ type: 'AUTH_LOGOUT' });
         }

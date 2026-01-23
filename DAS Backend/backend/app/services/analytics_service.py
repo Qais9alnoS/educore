@@ -544,6 +544,7 @@ class AnalyticsService:
         """
         Get school-wide grade averages for all quizzes and exams by session
         Returns average grades separated by morning and evening sessions
+        Calculates average of student averages (not average of all records)
         """
         db = SessionLocal()
         try:
@@ -552,6 +553,7 @@ class AnalyticsService:
             # Base query joining StudentAcademic with Student and Subject
             base_query = db.query(
                 StudentAcademic,
+                Student.id.label('student_id'),
                 Student.session_type,
                 Subject.subject_name
             ).join(
@@ -572,78 +574,72 @@ class AnalyticsService:
             if not records:
                 return []
             
-            # Group by subject
-            subjects = {}
-            for academic, session_type, subject_name in records:
-                if subject_name not in subjects:
-                    subjects[subject_name] = {
-                        'morning': {
-                            'quiz1': [], 'quiz2': [], 'quiz3': [], 'quiz4': [],
-                            'midterm': [], 'final': []
-                        },
-                        'evening': {
-                            'quiz1': [], 'quiz2': [], 'quiz3': [], 'quiz4': [],
-                            'midterm': [], 'final': []
-                        }
-                    }
-                
-                session = subjects[subject_name][session_type]
-                
-                # Collect quiz grades
-                if academic.first_quiz_grade is not None:
-                    session['quiz1'].append(float(academic.first_quiz_grade))
-                if academic.second_quiz_grade is not None:
-                    session['quiz2'].append(float(academic.second_quiz_grade))
-                if academic.third_quiz_grade is not None:
-                    session['quiz3'].append(float(academic.third_quiz_grade))
-                if academic.fourth_quiz_grade is not None:
-                    session['quiz4'].append(float(academic.fourth_quiz_grade))
-                
-                # Collect exam grades
-                if academic.midterm_grades is not None:
-                    session['midterm'].append(float(academic.midterm_grades))
-                if academic.final_exam_grades is not None:
-                    session['final'].append(float(academic.final_exam_grades))
+            # Group by student and assignment type to calculate student averages first
+            # Structure: {assignment_type: {assignment_number: {session: {student_id: [grades]}}}}
+            student_grades = {}
             
-            # Calculate averages and format output
-            for subject_name, sessions in subjects.items():
+            for academic, student_id, session_type, subject_name in records:
                 # Process quizzes
-                for quiz_num in range(1, 5):
-                    quiz_key = f'quiz{quiz_num}'
-                    morning_grades = sessions['morning'][quiz_key]
-                    evening_grades = sessions['evening'][quiz_key]
-                    
-                    if morning_grades or evening_grades:
-                        results.append({
-                            'assignment_type': 'مذاكرة',
-                            'assignment_number': quiz_num,
-                            'morning_average': round(sum(morning_grades) / len(morning_grades), 2) if morning_grades else 0,
-                            'evening_average': round(sum(evening_grades) / len(evening_grades), 2) if evening_grades else 0,
-                            'subject_name': subject_name
-                        })
+                for quiz_num, grade_field in [(1, 'first_quiz_grade'), (2, 'second_quiz_grade'), 
+                                               (3, 'third_quiz_grade'), (4, 'fourth_quiz_grade')]:
+                    grade = getattr(academic, grade_field, None)
+                    if grade is not None:
+                        key = ('مذاكرة', quiz_num)
+                        if key not in student_grades:
+                            student_grades[key] = {'morning': {}, 'evening': {}}
+                        if student_id not in student_grades[key][session_type]:
+                            student_grades[key][session_type][student_id] = []
+                        student_grades[key][session_type][student_id].append(float(grade))
                 
                 # Process midterm exam
-                morning_midterm = sessions['morning']['midterm']
-                evening_midterm = sessions['evening']['midterm']
-                if morning_midterm or evening_midterm:
-                    results.append({
-                        'assignment_type': 'امتحان',
-                        'assignment_number': 1,  # Midterm as exam #1
-                        'morning_average': round(sum(morning_midterm) / len(morning_midterm), 2) if morning_midterm else 0,
-                        'evening_average': round(sum(evening_midterm) / len(evening_midterm), 2) if evening_midterm else 0,
-                        'subject_name': subject_name
-                    })
+                if academic.midterm_grades is not None:
+                    key = ('امتحان', 1)
+                    if key not in student_grades:
+                        student_grades[key] = {'morning': {}, 'evening': {}}
+                    if student_id not in student_grades[key][session_type]:
+                        student_grades[key][session_type][student_id] = []
+                    student_grades[key][session_type][student_id].append(float(academic.midterm_grades))
                 
                 # Process final exam
-                morning_final = sessions['morning']['final']
-                evening_final = sessions['evening']['final']
-                if morning_final or evening_final:
+                if academic.final_exam_grades is not None:
+                    key = ('امتحان', 2)
+                    if key not in student_grades:
+                        student_grades[key] = {'morning': {}, 'evening': {}}
+                    if student_id not in student_grades[key][session_type]:
+                        student_grades[key][session_type][student_id] = []
+                    student_grades[key][session_type][student_id].append(float(academic.final_exam_grades))
+            
+            # Calculate average of student averages
+            for (assignment_type, assignment_number), sessions in student_grades.items():
+                morning_student_avgs = []
+                evening_student_avgs = []
+                
+                # Calculate each student's average for this assignment
+                for student_id, grades in sessions['morning'].items():
+                    if grades:
+                        student_avg = sum(grades) / len(grades)
+                        morning_student_avgs.append(student_avg)
+                
+                for student_id, grades in sessions['evening'].items():
+                    if grades:
+                        student_avg = sum(grades) / len(grades)
+                        evening_student_avgs.append(student_avg)
+                
+                # Calculate overall average (average of student averages)
+                morning_sum = sum(morning_student_avgs) if morning_student_avgs else 0
+                morning_count = len(morning_student_avgs) if morning_student_avgs else 0
+                evening_sum = sum(evening_student_avgs) if evening_student_avgs else 0
+                evening_count = len(evening_student_avgs) if evening_student_avgs else 0
+                
+                if morning_count > 0 or evening_count > 0:
                     results.append({
-                        'assignment_type': 'امتحان',
-                        'assignment_number': 2,  # Final as exam #2
-                        'morning_average': round(sum(morning_final) / len(morning_final), 2) if morning_final else 0,
-                        'evening_average': round(sum(evening_final) / len(evening_final), 2) if evening_final else 0,
-                        'subject_name': subject_name
+                        'assignment_type': assignment_type,
+                        'assignment_number': assignment_number,
+                        'morning_sum': morning_sum,
+                        'morning_count': morning_count,
+                        'evening_sum': evening_sum,
+                        'evening_count': evening_count,
+                        'subject_name': 'all'
                     })
             
             return results

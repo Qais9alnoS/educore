@@ -13,7 +13,14 @@ export interface User {
     created_at?: string;
 }
 
-export type UserRole = 'director' | 'finance' | 'morning_school' | 'evening_school' | 'admin';
+export type UserRole =
+    | 'director'
+    | 'finance'
+    | 'morning_school'
+    | 'evening_school'
+    | 'morning_supervisor'
+    | 'evening_supervisor'
+    | 'admin';
 
 export interface LoginCredentials {
     username: string;

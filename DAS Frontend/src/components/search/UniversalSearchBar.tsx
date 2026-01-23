@@ -1272,8 +1272,8 @@ export const UniversalSearchBar: React.FC<UniversalSearchBarProps> = ({
               onClick={handleFilterToggle}
               className={`p-1 rounded transition-colors ${
                 showFilters || Object.keys(filters).length > 0
-                  ? 'text-[hsl(var(--primary))] hover:text-[hsl(var(--primary))]/80'
-                  : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
+                  ? 'text-[hsl(var(--primary))]'
+                  : 'text-[hsl(var(--muted-foreground))]'
               }`}
               aria-label="تصفية"
             >

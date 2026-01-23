@@ -398,10 +398,6 @@ const StudentPersonalInfoPage = () => {
       setStudentToDelete(null);
     }
   };
-        variant: 'destructive',
-      });
-    }
-  };
 
   const resetForm = () => {
     setFormData({

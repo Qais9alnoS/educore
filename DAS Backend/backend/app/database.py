@@ -6,6 +6,13 @@ from typing import TYPE_CHECKING
 from .config import settings
 import os
 
+# Import SQLCipher instead of regular SQLite
+try:
+    import sqlcipher3 as sqlite3
+except ImportError:
+    import sqlite3
+    print("Warning: sqlcipher3-wheels not found. Using regular sqlite3. Database will not be encrypted.")
+
 if TYPE_CHECKING:
     from sqlalchemy.ext.declarative import DeclarativeMeta
 
@@ -14,16 +21,21 @@ db_path = settings.DATABASE_URL.replace("sqlite:///", "")
 if "/" in db_path or "\\" in db_path:
     os.makedirs(os.path.dirname(db_path), exist_ok=True)
 
+# Use SQLCipher driver for encrypted database
+# SQLAlchemy will automatically use sqlcipher3 since we imported it as sqlite3
 engine = create_engine(
     settings.DATABASE_URL,
     connect_args={"check_same_thread": False},  # SQLite specific
     echo=False  # Set to True for SQL logging
 )
 
-# Enable foreign key constraints for SQLite
+# Set SQLCipher encryption key and enable foreign key constraints
 @event.listens_for(engine, "connect")
 def set_sqlite_pragma(dbapi_connection, connection_record):
     cursor = dbapi_connection.cursor()
+    # Set encryption key for SQLCipher
+    cursor.execute(f"PRAGMA key='{settings.DATABASE_PASSWORD}'")
+    # Enable foreign key constraints
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
@@ -44,17 +56,17 @@ def get_db():
 
 def update_database_schema():
     """Update database schema to match current models"""
-    import sqlite3
-    
     # Skip if database doesn't exist yet (will be created with correct schema)
     if not os.path.exists(db_path):
         print("✓ Database will be created with CASCADE DELETE constraints")
         return
     
     try:
-        # Connect to the database
+        # Connect to the encrypted database with SQLCipher
         conn = sqlite3.connect(db_path)
         cursor = conn.cursor()
+        # Set encryption key for SQLCipher
+        cursor.execute(f"PRAGMA key='{settings.DATABASE_PASSWORD}'")
         
         # Check if class_id column exists in students table
         cursor.execute("PRAGMA table_info(students)")

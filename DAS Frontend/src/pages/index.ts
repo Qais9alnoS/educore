@@ -10,3 +10,4 @@ export { default as DirectorNotesPage } from './DirectorNotesPage';
 export { default as DirectorNotesSearchPage } from './DirectorNotesSearchPage';
 export { ScheduleManagementPage } from './ScheduleManagementPage';
 export { default as UserManagementPage } from './UserManagementPage';
+export { default as SettingsPage } from './SettingsPage';

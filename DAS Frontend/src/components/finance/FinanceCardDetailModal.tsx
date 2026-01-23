@@ -365,7 +365,8 @@ export const FinanceCardDetailModal: React.FC<FinanceCardDetailModalProps> = ({
   const netAmount = completedIncome - completedExpense;
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <>
+      <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader className="flex flex-row items-center justify-between pb-2 border-b">
           <div className="flex items-center gap-3">
@@ -742,17 +743,17 @@ export const FinanceCardDetailModal: React.FC<FinanceCardDetailModalProps> = ({
       </DialogContent>
     </Dialog>
 
-    {/* Delete Transaction Confirmation Dialog */}
-    <ConfirmationDialog
-      open={deleteConfirmOpen}
-      onOpenChange={setDeleteConfirmOpen}
-      title="حذف المعاملة"
-      description="هل أنت متأكد من حذف هذه المعاملة؟"
-      confirmText="حذف"
-      cancelText="إلغاء"
-      variant="destructive"
-      onConfirm={confirmDeleteTransaction}
-    />
+      <ConfirmationDialog
+        open={deleteConfirmOpen}
+        onOpenChange={setDeleteConfirmOpen}
+        title="حذف المعاملة"
+        description="هل أنت متأكد من حذف هذه المعاملة؟"
+        confirmText="حذف"
+        cancelText="إلغاء"
+        variant="destructive"
+        onConfirm={confirmDeleteTransaction}
+      />
+    </>
   );
 };
 
