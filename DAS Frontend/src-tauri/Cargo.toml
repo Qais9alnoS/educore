@@ -18,17 +18,17 @@ serde_json = { version = "1.0", default-features = false, features = ["std"] }
 serde = { version = "1.0", default-features = false, features = ["derive"] }
 
 # Tauri with minimal features for production
-tauri = { version = "2.9", default-features = false, features = [
+tauri = { version = "2", default-features = false, features = [
   "tray-icon",
   "image-png"
 ] }
 
 # Tauri plugins with minimal features
-tauri-plugin-shell = { version = "2.9", default-features = false }
-tauri-plugin-fs = { version = "2.9", default-features = false }
-tauri-plugin-window-state = { version = "2.9", default-features = false }
-tauri-plugin-decorum = { version = "0.1.6", default-features = false }
-tauri-plugin-updater = { version = "2.9", default-features = false }
+tauri-plugin-shell = { version = "2", default-features = false }
+tauri-plugin-fs = { version = "2", default-features = false }
+tauri-plugin-window-state = { version = "2", default-features = false }
+tauri-plugin-decorum = { version = "0.1", default-features = false }
+tauri-plugin-updater = { version = "2", default-features = false }
 
 
 [features]
