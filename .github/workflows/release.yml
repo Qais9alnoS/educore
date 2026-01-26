@@ -41,9 +41,7 @@ jobs:
       - name: Build Backend
         working-directory: DAS Backend/backend
         run: |
-          .\venv\Scripts\python -m PyInstaller run_server.py --name school-management-backend-x86_64-pc-windows-msvc --onedir --noconsole --add-data "app;app" --collect-all app --noupx --clean --noconfirm
-          # Create a zip of the directory for easier distribution
-          Compress-Archive -Path "dist\school-management-backend-x86_64-pc-windows-msvc" -DestinationPath "dist\backend.zip"
+          .\venv\Scripts\python -m PyInstaller das_backend.spec --clean --noconfirm
 
       - name: Upload Backend Artifact
         uses: actions/upload-artifact@v4

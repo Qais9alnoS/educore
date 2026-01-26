@@ -1,13 +1,8 @@
 # -*- mode: python ; coding: utf-8 -*-
 # PyInstaller spec file for DAS Backend
+# Simplified to avoid subprocess crashes on CI
 
 block_cipher = None
-
-import sys
-import os
-
-# Prevent PyInstaller from deep-analyzing app modules that crash
-os.environ['PYINSTALLER_STRICT_UNPACK_MODE'] = '0'
 
 a = Analysis(
     ['run_server.py'],
@@ -28,37 +23,23 @@ a = Analysis(
         'uvicorn.lifespan',
         'uvicorn.lifespan.on',
         'click',
-        # Passlib handlers - required for password hashing
         'passlib.handlers',
         'passlib.handlers.bcrypt',
-        'passlib.handlers.sha2_crypt',
-        'passlib.handlers.des_crypt',
-        'passlib.handlers.md5_crypt',
-        'passlib.handlers.pbkdf2',
-        'passlib.handlers.misc',
-        # Bcrypt backend - try pure Python fallback
         'bcrypt',
         '_cffi_backend',
-        # SQLAlchemy
         'sqlalchemy.dialects.sqlite',
-        # FastAPI/Starlette
         'starlette.responses',
         'starlette.routing',
         'starlette.middleware',
         'starlette.middleware.cors',
         'starlette.staticfiles',
-        # Pydantic
         'pydantic',
         'pydantic_core',
-        # Email validator
         'email_validator',
-        # Python multipart for form handling
         'python_multipart',
-        # Anyio
         'anyio',
         'anyio._backends',
         'anyio._backends._asyncio',
-        # Sniffio
         'sniffio',
     ],
     hookspath=[],
@@ -72,18 +53,8 @@ a = Analysis(
         'matplotlib',
         'numpy',
         'pandas',
+        'app',  # Exclude app from analysis - we include it as data
     ],
-    module_collection_mode={
-        'app': 'pyz+py',  # Include both compiled and source
-        'app.services': 'pyz+py',
-        'app.api': 'pyz+py',
-        'app.core': 'pyz+py',
-        'app.models': 'pyz+py',
-        'app.schemas': 'pyz+py',
-        'app.utils': 'pyz+py',
-        'sqlcipher3': 'pyz+py',
-        'psutil': 'pyz+py',
-    },
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
     cipher=block_cipher,
@@ -95,15 +66,13 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
-    a.binaries,  # Bundle all binaries into single EXE
-    a.zipfiles,
-    a.datas,
     [],
+    exclude_binaries=True,
     name='school-management-backend-x86_64-pc-windows-msvc',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=False,  # Disable UPX to avoid issues
+    upx=False,
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -111,4 +80,15 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=None,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,
+    upx_exclude=[],
+    name='school-management-backend-x86_64-pc-windows-msvc',
 )
