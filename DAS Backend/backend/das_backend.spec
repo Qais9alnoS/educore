@@ -72,7 +72,13 @@ a = Analysis(
         'pandas',
     ],
     module_collection_mode={
-        'app.services': 'py',  # Collect as source, don't analyze deeply
+        'app': 'py',  # Collect entire app as source to avoid deep analysis crashes
+        'app.services': 'py',
+        'app.api': 'py',
+        'app.core': 'py',
+        'app.models': 'py',
+        'app.schemas': 'py',
+        'app.utils': 'py',
     },
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
