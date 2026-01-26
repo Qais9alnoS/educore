@@ -83,7 +83,7 @@ class ScheduleConstraint(BaseModel):
     
     # Schedule constraint attributes
     academic_year_id = Column(Integer, ForeignKey("academic_years.id", ondelete="CASCADE"), nullable=False)
-    constraint_type = Column(String(20), nullable=False)  # forbidden, required, no_consecutive, max_consecutive, min_consecutive, subject_per_day
+    constraint_type = Column(String(20), nullable=False)  # forbidden, required, no_consecutive, max_consecutive, min_consecutive, subject_per_day, before_after
     
     # Target Specification
     class_id = Column(Integer, ForeignKey("classes.id", ondelete="CASCADE"))
@@ -100,6 +100,10 @@ class ScheduleConstraint(BaseModel):
     max_consecutive_periods = Column(Integer)  # For consecutive constraints
     min_consecutive_periods = Column(Integer)
     
+    # Before/After Constraint
+    reference_subject_id = Column(Integer, ForeignKey("subjects.id", ondelete="CASCADE"))  # For before_after constraint
+    placement = Column(String(10))  # 'before' or 'after' for before_after constraint
+    
     # Advanced Options
     applies_to_all_sections = Column(Boolean, default=False)
     session_type = Column(String(10), default="both")  # morning, evening, both
@@ -112,8 +116,9 @@ class ScheduleConstraint(BaseModel):
     # Relationships
     academic_year = relationship("AcademicYear")
     class_rel = relationship("Class")
-    subject = relationship("Subject")
+    subject = relationship("Subject", foreign_keys=[subject_id])
     teacher = relationship("Teacher")
+    reference_subject = relationship("Subject", foreign_keys=[reference_subject_id])
 
 class ConstraintTemplate(BaseModel):
     __tablename__ = "constraint_templates"

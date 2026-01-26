@@ -98,40 +98,40 @@ const LoginPage = () => {
     const selectedRole = roleOptions.find(role => role.value === formData.role);
 
     return (
-        <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted/30 flex items-start justify-center px-4 pt-8 pb-6">
-            <div className="w-full max-w-md mx-auto max-h-[calc(100vh-3.5rem)] overflow-auto">
+        <div className="fixed inset-0 bg-gradient-to-br from-slate-50/50 via-slate-50 to-slate-100/60 dark:from-background dark:via-background dark:to-muted/30 flex items-center justify-center p-4 overflow-hidden">
+            <div className="w-full max-w-md h-full max-h-[100vh] flex flex-col justify-center py-8 overflow-y-auto scrollbar-hide">
                 {/* App Logo and Title */}
-                <div className="text-center mb-6">
-                    <img src="/icon.png" alt="DAS Logo" className="w-24 h-24 mx-auto mb-4" />
-                    <h1 className="text-3xl font-bold text-foreground mb-2">
+                <div className="text-center mb-8 flex-shrink-0">
+                    <img src="/icon.png" alt="DAS Logo" className="w-20 h-20 mx-auto mb-3" />
+                    <h1 className="text-2xl font-bold text-foreground mb-1">
                         Educore
                     </h1>
-                    <p className="text-muted-foreground">
+                    <p className="text-sm text-muted-foreground">
                         مرحباً بك، قم بتسجيل الدخول للمتابعة
                     </p>
                 </div>
 
-                <Card className="rounded-3xl border-0 shadow-2xl backdrop-blur-sm bg-card/95">
-                <CardHeader className="space-y-1 p-6 pb-4">
-                    <CardTitle className="text-2xl text-center font-bold">تسجيل الدخول</CardTitle>
+                <Card className="rounded-3xl shadow-2xl backdrop-blur-sm bg-white/95 dark:bg-card/95 border-slate-200/60 dark:border-border flex-shrink-0">
+                <CardHeader className="space-y-1 p-5 pb-3">
+                    <CardTitle className="text-xl text-center font-bold">تسجيل الدخول</CardTitle>
                 </CardHeader>
 
-                <CardContent className="space-y-6 p-6 pt-2">
+                <CardContent className="space-y-4 p-5 pt-2">
                     {state.error && (
                         <Alert variant="destructive" className="rounded-2xl">
                             <AlertDescription>{state.error}</AlertDescription>
                         </Alert>
                     )}
 
-                    <form onSubmit={handleSubmit} className="space-y-5">
+                    <form onSubmit={handleSubmit} className="space-y-4">
                         {/* Role Selection */}
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <Label htmlFor="role" className="text-sm font-semibold">الصلاحية</Label>
                             <Select
                                 value={formData.role}
                                 onValueChange={(value) => handleInputChange('role', value)}
                             >
-                                <SelectTrigger className="w-full h-12 rounded-2xl border-2 transition-all focus:ring-2 focus:ring-primary/20">
+                                <SelectTrigger className="w-full h-11 rounded-2xl border-2 transition-all focus:ring-2 focus:ring-primary/20">
                                     <SelectValue placeholder="اختر صلاحيتك" />
                                 </SelectTrigger>
                                 <SelectContent className="rounded-2xl">
@@ -139,9 +139,9 @@ const LoginPage = () => {
                                         <SelectItem key={role.value} value={role.value} className="rounded-xl my-1">
                                             <div className="flex items-center space-x-3 space-x-reverse py-1">
                                                 <div className={`p-2 rounded-lg ${role.bgColor}`}>
-                                                    <role.icon className={`h-5 w-5 ${role.color}`} />
+                                                    <role.icon className={`h-4 w-4 ${role.color}`} />
                                                 </div>
-                                                <div className="font-medium">{role.label}</div>
+                                                <div className="font-medium text-sm">{role.label}</div>
                                             </div>
                                         </SelectItem>
                                     ))}
@@ -150,7 +150,7 @@ const LoginPage = () => {
                         </div>
 
                         {/* Username */}
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <Label htmlFor="username" className="text-sm font-semibold">اسم المستخدم</Label>
                             <div className="relative">
                                 <Input
@@ -159,15 +159,15 @@ const LoginPage = () => {
                                     placeholder="أدخل اسم المستخدم"
                                     value={formData.username}
                                     onChange={(e) => handleInputChange('username', e.target.value)}
-                                    className="pl-10 h-12 rounded-2xl border-2 transition-all focus:ring-2 focus:ring-primary/20"
+                                    className="pl-10 h-11 rounded-2xl border-2 transition-all focus:ring-2 focus:ring-primary/20"
                                     required
                                 />
-                                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             </div>
                         </div>
 
                         {/* Password */}
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                             <Label htmlFor="password" className="text-sm font-semibold">كلمة المرور</Label>
                             <div className="relative">
                                 <Input
@@ -176,7 +176,7 @@ const LoginPage = () => {
                                     placeholder="أدخل كلمة المرور"
                                     value={formData.password}
                                     onChange={(e) => handleInputChange('password', e.target.value)}
-                                    className="pl-10 h-12 rounded-2xl border-2 transition-all focus:ring-2 focus:ring-primary/20"
+                                    className="pl-10 h-11 rounded-2xl border-2 transition-all focus:ring-2 focus:ring-primary/20"
                                     required
                                 />
                                 <Button
@@ -187,16 +187,16 @@ const LoginPage = () => {
                                     onClick={() => setShowPassword(!showPassword)}
                                 >
                                     {showPassword ? (
-                                        <EyeOff className="h-5 w-5 text-muted-foreground" />
+                                        <EyeOff className="h-4 w-4 text-muted-foreground" />
                                     ) : (
-                                        <Eye className="h-5 w-5 text-muted-foreground" />
+                                        <Eye className="h-4 w-4 text-muted-foreground" />
                                     )}
                                 </Button>
                             </div>
                         </div>
 
                         {/* Remember Me */}
-                        <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-muted/40 px-4 py-3">
+                        <div className="flex items-center justify-between rounded-2xl border border-border/60 bg-muted/40 px-3.5 py-2.5">
                             <div className="space-y-0.5">
                                 <Label className="text-sm font-semibold">تذكرني</Label>
                                 <p className="text-xs text-muted-foreground">تسجيل الدخول تلقائياً في المرة القادمة</p>
@@ -207,7 +207,7 @@ const LoginPage = () => {
                         {/* Submit Button */}
                         <Button
                             type="submit"
-                            className="w-full h-12 rounded-full text-base font-semibold shadow-lg hover:shadow-xl transition-all"
+                            className="w-full h-11 rounded-full text-base font-semibold shadow-lg hover:shadow-xl transition-all"
                             disabled={state.isLoading || !formData.username || !formData.password || !formData.role}
                         >
                             {state.isLoading ? (
@@ -227,7 +227,7 @@ const LoginPage = () => {
                 </Card>
 
                 {/* Footer */}
-                <div className="text-center mt-6 text-sm text-muted-foreground">
+                <div className="text-center mt-6 text-xs text-muted-foreground flex-shrink-0">
                     <p dir="ltr">© Rizonway 2026</p>
                 </div>
             </div>

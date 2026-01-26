@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { Separator } from '@/components/ui/separator';
+import { clearScheduleCache } from '@/lib/scheduleCache';
 
 interface ConflictResolverProps {
   open: boolean;
@@ -198,6 +199,9 @@ export const ConflictResolver: React.FC<ConflictResolverProps> = ({
       );
 
       if (response.ok) {
+        // Clear schedule cache so the page resets when re-entering
+        clearScheduleCache();
+        
         toast({
           title: 'تم النشر',
           description: 'تم نشر الجدول بنجاح'

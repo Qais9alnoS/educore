@@ -67,7 +67,7 @@ class ScheduleUpdate(BaseModel):
 # Schedule Constraint Schemas
 class ScheduleConstraintBase(BaseModel):
     academic_year_id: int
-    constraint_type: str  # forbidden, required, no_consecutive, max_consecutive, min_consecutive
+    constraint_type: str  # forbidden, required, no_consecutive, max_consecutive, min_consecutive, before_after, subject_per_day
     class_id: Optional[int] = None
     subject_id: Optional[int] = None
     teacher_id: Optional[int] = None
@@ -77,6 +77,8 @@ class ScheduleConstraintBase(BaseModel):
     time_range_end: Optional[int] = None
     max_consecutive_periods: Optional[int] = None
     min_consecutive_periods: Optional[int] = None
+    reference_subject_id: Optional[int] = None  # For before_after constraint
+    placement: Optional[str] = None  # 'before' or 'after' for before_after constraint
     applies_to_all_sections: bool = False
     session_type: str = "both"  # morning, evening, both
     priority_level: int = 1  # 1=Low, 2=Medium, 3=High, 4=Critical
@@ -97,6 +99,8 @@ class ScheduleConstraintUpdate(BaseModel):
     time_range_end: Optional[int] = None
     max_consecutive_periods: Optional[int] = None
     min_consecutive_periods: Optional[int] = None
+    reference_subject_id: Optional[int] = None
+    placement: Optional[str] = None
     applies_to_all_sections: Optional[bool] = None
     session_type: Optional[str] = None
     priority_level: Optional[int] = None
@@ -116,6 +120,8 @@ class ScheduleConstraintResponse(BaseModel):
     time_range_end: Optional[int] = None
     max_consecutive_periods: Optional[int] = None
     min_consecutive_periods: Optional[int] = None
+    reference_subject_id: Optional[int] = None
+    placement: Optional[str] = None
     applies_to_all_sections: Optional[bool] = False
     session_type: Optional[str] = "both"
     priority_level: Optional[int] = 1
@@ -965,12 +971,25 @@ async def create_schedule_constraint(
 ):
     """Create a new schedule constraint"""
     # Validate constraint type
-    valid_constraint_types = ["forbidden", "required", "no_consecutive", "max_consecutive", "min_consecutive"]
+    valid_constraint_types = ["forbidden", "required", "no_consecutive", "max_consecutive", "min_consecutive", "before_after", "subject_per_day"]
     if constraint.constraint_type not in valid_constraint_types:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid constraint type. Must be one of: {', '.join(valid_constraint_types)}"
         )
+    
+    # Validate before_after constraint requires reference_subject_id and placement
+    if constraint.constraint_type == "before_after":
+        if not constraint.reference_subject_id:
+            raise HTTPException(
+                status_code=400,
+                detail="before_after constraint requires reference_subject_id"
+            )
+        if constraint.placement not in ["before", "after"]:
+            raise HTTPException(
+                status_code=400,
+                detail="before_after constraint requires placement to be 'before' or 'after'"
+            )
     
     # Validate session type
     valid_session_types = ["morning", "evening", "both"]
@@ -1008,6 +1027,20 @@ async def create_schedule_constraint(
             detail="min_consecutive_periods must be at least 1"
         )
     
+    # Check for duplicate constraint (same subject, type, class, academic year)
+    existing_constraint = db.query(ScheduleConstraint).filter(
+        ScheduleConstraint.academic_year_id == constraint.academic_year_id,
+        ScheduleConstraint.subject_id == constraint.subject_id,
+        ScheduleConstraint.constraint_type == constraint.constraint_type,
+        ScheduleConstraint.class_id == constraint.class_id
+    ).first()
+    
+    if existing_constraint:
+        raise HTTPException(
+            status_code=400,
+            detail="هذا القيد موجود بالفعل لهذه المادة"
+        )
+    
     db_constraint = ScheduleConstraint(**constraint.dict())
     db.add(db_constraint)
     db.commit()
@@ -1042,7 +1075,7 @@ async def update_schedule_constraint(
     
     # Validate constraint type if being updated
     if "constraint_type" in update_data:
-        valid_constraint_types = ["forbidden", "required", "no_consecutive", "max_consecutive", "min_consecutive"]
+        valid_constraint_types = ["forbidden", "required", "no_consecutive", "max_consecutive", "min_consecutive", "before_after", "subject_per_day"]
         if update_data["constraint_type"] not in valid_constraint_types:
             raise HTTPException(
                 status_code=400,
@@ -1671,7 +1704,7 @@ async def export_schedule_to_excel(
     include_logo: bool = Query(True),
     include_notes: bool = Query(True),
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_school_user)
+    current_user: User = Depends(get_current_user)
 ):
     """Export schedule to Excel format"""
     from ..services.export_service import ExportService
@@ -1704,93 +1737,10 @@ async def export_schedule_to_excel(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
 
-@router.get("/{schedule_id}/export/pdf")
-async def export_schedule_to_pdf(
-    schedule_id: int,
-    orientation: str = Query("landscape", regex="^(portrait|landscape)$"),
-    include_logo: bool = Query(True),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_school_user)
-):
-    """Export schedule to PDF format"""
-    from ..services.export_service import ExportService
-    from fastapi.responses import StreamingResponse
-    
-    export_service = ExportService(db)
-    
-    try:
-        pdf_file = export_service.export_schedule_pdf(
-            schedule_id=schedule_id,
-            orientation=orientation,
-            include_logo=include_logo
-        )
-        
-        # Get schedule for filename
-        schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
-        if not schedule:
-            raise HTTPException(status_code=404, detail="Schedule not found")
-        
-        class_obj = db.query(Class).filter(Class.id == schedule.class_id).first()
-        filename = f"schedule_{class_obj.grade_number if class_obj else schedule_id}_{schedule.section or '1'}.pdf"
-        
-        return StreamingResponse(
-            pdf_file,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-    except ImportError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
-
-@router.get("/{schedule_id}/export/image")
-async def export_schedule_to_image(
-    schedule_id: int,
-    format: str = Query("PNG", regex="^(PNG|JPG|JPEG)$"),
-    width: int = Query(1920, ge=800, le=4000),
-    height: int = Query(1080, ge=600, le=3000),
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_school_user)
-):
-    """Export schedule to image format (PNG/JPG)"""
-    from ..services.export_service import ExportService
-    from fastapi.responses import StreamingResponse
-    
-    export_service = ExportService(db)
-    
-    try:
-        image_file = export_service.export_schedule_image(
-            schedule_id=schedule_id,
-            format=format,
-            width=width,
-            height=height
-        )
-        
-        # Get schedule for filename
-        schedule = db.query(Schedule).filter(Schedule.id == schedule_id).first()
-        if not schedule:
-            raise HTTPException(status_code=404, detail="Schedule not found")
-        
-        class_obj = db.query(Class).filter(Class.id == schedule.class_id).first()
-        extension = format.lower()
-        filename = f"schedule_{class_obj.grade_number if class_obj else schedule_id}_{schedule.section or '1'}.{extension}"
-        
-        media_type = f"image/{extension}"
-        
-        return StreamingResponse(
-            image_file,
-            media_type=media_type,
-            headers={"Content-Disposition": f"attachment; filename={filename}"}
-        )
-    except ImportError as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Export failed: {str(e)}")
-
 @router.post("/bulk-export")
 async def bulk_export_schedules(
     schedule_ids: List[int],
-    format: str = Query("excel", regex="^(excel|pdf)$"),
+    format: str = Query("excel", regex="^(excel)$"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_school_user)
 ):
@@ -1818,12 +1768,8 @@ async def bulk_export_schedules(
                 class_obj = db.query(Class).filter(Class.id == schedule.class_id).first()
                 base_filename = f"schedule_{class_obj.grade_number if class_obj else schedule_id}_{schedule.section or '1'}"
                 
-                if format == "excel":
-                    file_content = export_service.export_schedule_excel(schedule_id)
-                    filename = f"{base_filename}.xlsx"
-                else:  # pdf
-                    file_content = export_service.export_schedule_pdf(schedule_id)
-                    filename = f"{base_filename}.pdf"
+                file_content = export_service.export_schedule_excel(schedule_id)
+                filename = f"{base_filename}.xlsx"
                 
                 zip_file.writestr(filename, file_content.read())
         

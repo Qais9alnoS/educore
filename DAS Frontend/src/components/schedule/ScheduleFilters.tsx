@@ -19,6 +19,7 @@ interface ScheduleFiltersProps {
     classId: number;
     section: string;
   }) => void;
+  onExistingScheduleChange?: (hasExisting: boolean, replaceConfirmed: boolean) => void;
 }
 
 const GRADE_LEVELS = {
@@ -32,7 +33,7 @@ const SESSIONS = [
   { value: 'evening', label: 'مسائي' }
 ];
 
-export const ScheduleFilters: React.FC<ScheduleFiltersProps> = ({ onComplete }) => {
+export const ScheduleFilters: React.FC<ScheduleFiltersProps> = ({ onComplete, onExistingScheduleChange }) => {
   // Get user info from AuthContext
   const { state } = useAuth();
   const userRole = (state.user?.role as string) || '';
@@ -59,6 +60,7 @@ export const ScheduleFilters: React.FC<ScheduleFiltersProps> = ({ onComplete }) 
   const [existingScheduleInfo, setExistingScheduleInfo] = useState<{ totalPeriods: number } | null>(null);
   const [checkingExisting, setCheckingExisting] = useState(false);
   const [replaceConfirmed, setReplaceConfirmed] = useState(false);
+  const [isDeletingSchedule, setIsDeletingSchedule] = useState(false);
 
   // Validation
   const [isValid, setIsValid] = useState(false);
@@ -201,6 +203,7 @@ export const ScheduleFilters: React.FC<ScheduleFiltersProps> = ({ onComplete }) 
 
       if (foundClass) {
         setClassId(foundClass.id);
+        // Only set valid if there's no existing schedule OR replacement has been confirmed
         setIsValid(true);
       } else {
         setClassId(null);
@@ -251,12 +254,25 @@ export const ScheduleFilters: React.FC<ScheduleFiltersProps> = ({ onComplete }) 
     checkExisting();
   }, [academicYearId, sessionType, classId, section]);
 
+  // Notify parent about existing schedule status changes
+  useEffect(() => {
+    if (onExistingScheduleChange) {
+      onExistingScheduleChange(hasExistingSchedule, replaceConfirmed);
+    }
+  }, [hasExistingSchedule, replaceConfirmed, onExistingScheduleChange]);
+
   // Auto-complete step when selections are valid and overwrite (if any) is confirmed
   useEffect(() => {
-    if (!isValid || !academicYearId || !classId || !gradeNumber) return;
+    if (!isValid || !academicYearId || !classId || !gradeNumber) {
+      setAutoCompleted(false);
+      return;
+    }
 
     // If there is an existing schedule, wait until user confirms replacement
-    if (hasExistingSchedule && !replaceConfirmed) return;
+    if (hasExistingSchedule && !replaceConfirmed) {
+      setAutoCompleted(false);
+      return;
+    }
 
     if (autoCompleted) return;
 
@@ -282,6 +298,48 @@ export const ScheduleFilters: React.FC<ScheduleFiltersProps> = ({ onComplete }) 
     autoCompleted,
     onComplete
   ]);
+
+  // Handle schedule replacement confirmation
+  const handleReplaceConfirmation = async () => {
+    if (!academicYearId || !sessionType || !classId || !section) return;
+
+    setIsDeletingSchedule(true);
+    try {
+      // Use the proper delete endpoint that restores teacher availability
+      const response = await schedulesApi.deleteClassSchedule({
+        academic_year_id: academicYearId,
+        session_type: sessionType,
+        class_id: classId,
+        section: section
+      });
+
+      if (response.success) {
+        const teachersRestored = response.data?.restored_teachers || [];
+        const deletedCount = response.data?.deleted_count || 0;
+        const restoredInfo = teachersRestored.length > 0
+          ? ` (تم استعادة أوقات فراغ ${teachersRestored.length} معلمين)`
+          : '';
+
+        toast({
+          title: 'تم حذف الجدول القديم',
+          description: `تم حذف ${deletedCount} حصة من الجدول القديم بنجاح${restoredInfo}`,
+        });
+
+        // Mark as confirmed and clear existing schedule flag
+        setReplaceConfirmed(true);
+        setHasExistingSchedule(false);
+        setExistingScheduleInfo(null);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'خطأ',
+        description: 'فشل حذف الجدول القديم. يرجى المحاولة مرة أخرى.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsDeletingSchedule(false);
+    }
+  };
 
   const availableGrades = gradeLevel ? GRADE_LEVELS[gradeLevel as keyof typeof GRADE_LEVELS]?.grades || [] : [];
 
@@ -408,11 +466,20 @@ export const ScheduleFilters: React.FC<ScheduleFiltersProps> = ({ onComplete }) 
       </div>
 
       {/* Validation Status */}
-      {isValid && classId && (
+      {isValid && classId && !hasExistingSchedule && (
         <Alert className="bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800">
           <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
           <AlertDescription className="text-green-800 dark:text-green-100">
             تم اختيار الصف بنجاح. يمكنك المتابعة للخطوة التالية.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {isValid && classId && hasExistingSchedule && replaceConfirmed && (
+        <Alert className="bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800">
+          <CheckCircle2 className="h-4 w-4 text-green-600 dark:text-green-400" />
+          <AlertDescription className="text-green-800 dark:text-green-100">
+            تم تأكيد استبدال الجدول. يمكنك المتابعة للخطوة التالية.
           </AlertDescription>
         </Alert>
       )}
@@ -443,10 +510,19 @@ export const ScheduleFilters: React.FC<ScheduleFiltersProps> = ({ onComplete }) 
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setReplaceConfirmed(true)}
-                disabled={replaceConfirmed}
+                onClick={handleReplaceConfirmation}
+                disabled={replaceConfirmed || isDeletingSchedule}
               >
-                {replaceConfirmed ? 'تم تأكيد الاستبدال' : 'تأكيد استبدال الجدول'}
+                {isDeletingSchedule ? (
+                  <>
+                    <Loader2 className="h-4 w-4 ml-2 animate-spin" />
+                    جاري الحذف...
+                  </>
+                ) : replaceConfirmed ? (
+                  'تم تأكيد الاستبدال'
+                ) : (
+                  'تأكيد استبدال الجدول'
+                )}
               </Button>
             </div>
           </AlertDescription>

@@ -68,6 +68,35 @@ def update_database_schema():
         # Set encryption key for SQLCipher
         cursor.execute(f"PRAGMA key='{settings.DATABASE_PASSWORD}'")
         
+        # Verify the database is encrypted correctly by testing a simple query
+        try:
+            cursor.execute("SELECT count(*) FROM sqlite_master")
+            cursor.fetchone()
+        except Exception as verify_error:
+            error_msg = str(verify_error).lower()
+            if "file is not a database" in error_msg or "hmac check failed" in error_msg or "error decrypting" in error_msg:
+                conn.close()
+                print("\n" + "="*80)
+                print("DATABASE ENCRYPTION ERROR DETECTED")
+                print("="*80)
+                print("The database file exists but cannot be decrypted.")
+                print("This usually means:")
+                print("  1. Database was created without encryption (regular SQLite)")
+                print("  2. Database was created with a different password")
+                print("  3. Database file is corrupted")
+                print("\nRECOMMENDED ACTIONS:")
+                print("  Option 1 - Start Fresh (if you don't need existing data):")
+                print(f"    - Delete: {db_path}")
+                print("    - Restart the server (database will be recreated with encryption)")
+                print("\n  Option 2 - Backup and Migrate (if you need existing data):")
+                print(f"    - Rename: {db_path} to {db_path}.backup")
+                print("    - Restart the server to create new encrypted database")
+                print("    - Manually migrate data from backup if needed")
+                print("="*80 + "\n")
+                raise Exception(f"Database encryption verification failed: {verify_error}")
+            else:
+                raise
+        
         # Check if class_id column exists in students table
         cursor.execute("PRAGMA table_info(students)")
         columns = cursor.fetchall()

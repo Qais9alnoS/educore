@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { UserProfileModal } from '@/components/UserProfileModal';
 import { IOSSwitch } from '@/components/ui/ios-switch';
-import { UpdateChecker } from '@/components/UpdateChecker';
+import { useUpdateChecker, UpdateDialog } from '@/components/UpdateChecker';
 import { useToast } from '@/hooks/use-toast';
 import { Sun, Moon, Monitor, FolderOpen, RotateCcw, Settings, Folder, User, Download, RefreshCw } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
@@ -42,17 +42,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
   const [rememberMeEnabled, setRememberMeEnabled] = useState(false);
   const [checkingUpdates, setCheckingUpdates] = useState(false);
 
-  const updateChecker = UpdateChecker({
-    onCheckComplete: (hasUpdate) => {
-      setCheckingUpdates(false);
-      if (!hasUpdate) {
-        toast({
-          title: "لا توجد تحديثات",
-          description: "أنت تستخدم أحدث إصدار من البرنامج",
-        });
-      }
-    }
-  });
+  const updateChecker = useUpdateChecker();
 
   const zoomPresets = [80, 90, 100, 125, 150];
   const fontSizePresets = [14, 16, 18, 20];
@@ -105,7 +95,15 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
   const handleCheckForUpdates = async () => {
     setCheckingUpdates(true);
     try {
-      await updateChecker.checkForUpdates();
+      const update = await updateChecker.checkForUpdates(true); // manual = true
+      setCheckingUpdates(false);
+      if (!update) {
+        toast({
+          title: "لا توجد تحديثات",
+          description: "أنت تستخدم أحدث إصدار من البرنامج",
+        });
+      }
+      // If update exists, dialog will show automatically
     } catch (error) {
       console.error('Failed to check for updates:', error);
       setCheckingUpdates(false);
@@ -374,7 +372,14 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
         </Card>
 
         {/* Update Dialog */}
-        {updateChecker.dialog}
+        <UpdateDialog
+          open={updateChecker.showDialog}
+          onOpenChange={updateChecker.setShowDialog}
+          updateInfo={updateChecker.updateInfo}
+          downloading={updateChecker.downloading}
+          downloadProgress={updateChecker.downloadProgress}
+          onDownloadAndInstall={updateChecker.downloadAndInstall}
+        />
 
         {/* Meta info */}
         <div className="pt-2 pb-4 text-center text-xs text-muted-foreground flex flex-col items-center gap-1" dir="rtl">

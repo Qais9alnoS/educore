@@ -93,11 +93,15 @@ export const ConstraintManager: React.FC<ConstraintManagerProps> = ({
           .filter((c: any) => c.class_id === data.classId || c.class_id === null)
           .map((c: any) => {
             const subject = subjects.find(s => s.id === c.subject_id);
+            const refSubject = c.reference_subject_id ? subjects.find(s => s.id === c.reference_subject_id) : null;
             let description = '';
             if (c.constraint_type === 'no_consecutive') {
               description = `${subject?.subject_name || 'مادة'}: لا يجب أن تكون الحصص متتالية`;
             } else if (c.constraint_type === 'subject_per_day') {
-              description = `${subject?.subject_name || 'مادة'}: يجب أن تكون في كل يوم`;
+              description = `${subject?.subject_name || 'مادة'}: توزيع على جميع الأيام`;
+            } else if (c.constraint_type === 'before_after') {
+              const placementText = c.placement === 'before' ? 'قبل' : 'بعد';
+              description = `${subject?.subject_name || 'مادة'}: لا يجب أن تكون ${placementText} ${refSubject?.subject_name || 'مادة'}`;
             } else {
               description = c.description || '';
             }
@@ -107,6 +111,9 @@ export const ConstraintManager: React.FC<ConstraintManagerProps> = ({
               subject_name: subject?.subject_name || 'مادة غير معروفة',
               constraint_type: c.constraint_type,
               priority_level: c.priority_level,
+              reference_subject_id: c.reference_subject_id,
+              reference_subject_name: refSubject?.subject_name,
+              placement: c.placement,
               description,
             };
           });
@@ -151,6 +158,19 @@ export const ConstraintManager: React.FC<ConstraintManagerProps> = ({
       return;
     }
 
+    // Check for duplicate constraint
+    const existingConstraint = constraints.find(
+      (c) => c.subject_id === selectedSubject && c.constraint_type === constraintType
+    );
+    if (existingConstraint) {
+      toast({
+        title: "تنبيه",
+        description: "هذا القيد موجود بالفعل لهذه المادة",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const subject = subjects.find((s) => s.id === selectedSubject);
     const refSubject = referenceSubject
       ? subjects.find((s) => s.id === referenceSubject)
@@ -161,9 +181,11 @@ export const ConstraintManager: React.FC<ConstraintManagerProps> = ({
     let description = "";
     if (constraintType === "no_consecutive") {
       description = `${subject.subject_name}: لا يجب أن تكون الحصص متتالية`;
-    } else {
+    } else if (constraintType === "before_after") {
       const placementText = placement === "before" ? "قبل" : "بعد";
-      description = `${subject.subject_name}: يجب أن تكون ${placementText} ${refSubject?.subject_name}`;
+      description = `${subject.subject_name}: لا يجب أن تكون ${placementText} ${refSubject?.subject_name}`;
+    } else {
+      description = `${subject.subject_name}: توزيع على جميع الأيام`;
     }
 
     const newConstraint: Constraint = {
@@ -180,7 +202,7 @@ export const ConstraintManager: React.FC<ConstraintManagerProps> = ({
 
     // Save to backend
     try {
-      const backendConstraint = {
+      const backendConstraint: any = {
         academic_year_id: data.academicYearId,
         constraint_type: constraintType,
         class_id: data.classId,
@@ -192,7 +214,13 @@ export const ConstraintManager: React.FC<ConstraintManagerProps> = ({
         is_active: true,
       };
 
-      const response = await schedulesApi.createConstraint(backendConstraint as any);
+      // Add before_after specific fields
+      if (constraintType === "before_after" && referenceSubject) {
+        backendConstraint.reference_subject_id = referenceSubject;
+        backendConstraint.placement = placement;
+      }
+
+      const response = await schedulesApi.createConstraint(backendConstraint);
 
       if (response.success && response.data) {
         // Use the ID from the backend
@@ -256,7 +284,7 @@ export const ConstraintManager: React.FC<ConstraintManagerProps> = ({
       case "no_consecutive":
         return "عدم التتالي";
       case "before_after":
-        return "الترتيب";
+        return "عدم الترتيب";
       case "subject_per_day":
         return "مادة كل يوم";
       default:
@@ -340,17 +368,9 @@ export const ConstraintManager: React.FC<ConstraintManagerProps> = ({
                         </SelectItem>
                         <SelectItem value="before_after">
                           <div className="flex flex-col items-start">
-                            <span>الترتيب (قبل/بعد)</span>
+                            <span>عدم الترتيب (قبل/بعد)</span>
                             <span className="text-xs text-muted-foreground">
-                              يجب أن تكون قبل أو بعد مادة معينة
-                            </span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="subject_per_day">
-                          <div className="flex flex-col items-start">
-                            <span>مادة كل يوم</span>
-                            <span className="text-xs text-muted-foreground">
-                              توزيع المادة على جميع الأيام (اختياري)
+                              لا تكون قبل أو بعد مادة معينة
                             </span>
                           </div>
                         </SelectItem>

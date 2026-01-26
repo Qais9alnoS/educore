@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -50,7 +51,9 @@ interface WeeklyScheduleGridProps {
   onAssignmentEdit?: (assignment: ScheduleAssignment) => void;
   onAssignmentDelete?: (assignmentId: number) => void;
   onSwapComplete?: () => void;
+  onLocalSwap?: (updatedAssignments: ScheduleAssignment[]) => void;
   readOnly?: boolean;
+  isPreviewMode?: boolean;
 }
 
 const DAYS = [
@@ -78,7 +81,9 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
   onAssignmentEdit,
   onAssignmentDelete,
   onSwapComplete,
-  readOnly = false
+  onLocalSwap,
+  readOnly = false,
+  isPreviewMode = false
 }) => {
   const [selectedCell, setSelectedCell] = useState<ScheduleAssignment | null>(null);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
@@ -138,7 +143,8 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
 
   // Custom Mouse-based Drag Handlers for Tauri
   const handleMouseDown = (e: React.MouseEvent, assignment: ScheduleAssignment) => {
-    if (readOnly || e.button !== 0) return; // Only left click
+    // Allow dragging in preview mode (for local swaps) but not in readOnly mode (for saved schedules)
+    if ((readOnly && !isPreviewMode) || e.button !== 0) return; // Only left click
     
     e.preventDefault();
     setDragStartPos({ x: e.clientX, y: e.clientY });
@@ -205,7 +211,8 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
   }, [draggedAssignment, dragStartPos, isDragging, dragThreshold]);
 
   const handleCellMouseEnter = async (day: number, period: number) => {
-    if (readOnly || !draggedAssignment || !isDragging) return;
+    // Allow in preview mode for local swaps
+    if ((readOnly && !isPreviewMode) || !draggedAssignment || !isDragging) return;
 
     const key = `${day}-${period}`;
     const targetAssignment = gridMap.get(key);
@@ -214,6 +221,13 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
     if (!targetAssignment || draggedAssignment.id === targetAssignment.id) {
       setDragOverCell(key);
       setIsValidDrop(false);
+      return;
+    }
+
+    // In preview mode, allow all swaps (local validation only)
+    if (isPreviewMode) {
+      setDragOverCell(key);
+      setIsValidDrop(true);
       return;
     }
 
@@ -250,7 +264,8 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
   };
 
   const handleCellMouseUp = async (day: number, period: number) => {
-    if (readOnly || !draggedAssignment || !isDragging) return;
+    // Allow in preview mode for local swaps
+    if ((readOnly && !isPreviewMode) || !draggedAssignment || !isDragging) return;
 
     const key = `${day}-${period}`;
     const targetAssignment = gridMap.get(key);
@@ -272,18 +287,66 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
       return;
     }
 
-    // Check if this swap was validated as invalid
-    const cacheKey = `${draggedAssignment.id}-${targetAssignment.id}`;
-    if (swapValidityCache.has(cacheKey) && !swapValidityCache.get(cacheKey)) {
-      handleMouseUp();
-      return;
+    // Check if this swap was validated as invalid (only for non-preview mode)
+    if (!isPreviewMode) {
+      const cacheKey = `${draggedAssignment.id}-${targetAssignment.id}`;
+      if (swapValidityCache.has(cacheKey) && !swapValidityCache.get(cacheKey)) {
+        handleMouseUp();
+        return;
+      }
     }
 
     // Store cell keys for animation
     const draggedKey = `${draggedAssignment.day_of_week}-${draggedAssignment.period_number}`;
     const targetKey = key;
 
-    // Call swap API
+    // In preview mode, perform local swap without API call
+    if (isPreviewMode) {
+      setSwappingCells({ cell1: draggedKey, cell2: targetKey });
+
+      // Perform local swap
+      const updatedAssignments = localAssignments.map(a => {
+        if (a.id === draggedAssignment.id) {
+          return {
+            ...a,
+            subject_id: targetAssignment.subject_id,
+            subject_name: targetAssignment.subject_name,
+            teacher_id: targetAssignment.teacher_id,
+            teacher_name: targetAssignment.teacher_name,
+          };
+        }
+        if (a.id === targetAssignment.id) {
+          return {
+            ...a,
+            subject_id: draggedAssignment.subject_id,
+            subject_name: draggedAssignment.subject_name,
+            teacher_id: draggedAssignment.teacher_id,
+            teacher_name: draggedAssignment.teacher_name,
+          };
+        }
+        return a;
+      });
+
+      setLocalAssignments(updatedAssignments);
+
+      setTimeout(() => {
+        setSwappingCells(null);
+        // Notify parent of local swap
+        if (onLocalSwap) {
+          onLocalSwap(updatedAssignments);
+        }
+      }, 400);
+
+      toast({
+        title: 'تم التبديل',
+        description: 'تم تبديل الحصتين بنجاح (معاينة محلية)'
+      });
+
+      handleMouseUp();
+      return;
+    }
+
+    // Call swap API for saved schedules
     try {
       const { schedulesApi } = await import('@/services/api');
       const result = await schedulesApi.swap(draggedAssignment.id, targetAssignment.id);
@@ -376,13 +439,15 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
         onMouseLeave={handleCellMouseLeave}
         onMouseUp={() => handleCellMouseUp(day, period)}
         className={cn(
-          "h-full min-h-[90px] p-3 rounded-lg transition-all cursor-move group relative select-none",
+          "h-full min-h-[80px] p-2.5 rounded-lg transition-all group relative select-none flex flex-col",
+          // Allow cursor-move in preview mode or when not readOnly
+          (!readOnly || isPreviewMode) ? "cursor-move" : "cursor-default",
           hasConflict
-            ? "bg-red-50 dark:bg-red-950 border-2 border-red-300 dark:border-red-700"
-            : "bg-blue-50 dark:bg-slate-800/90 border border-blue-200 dark:border-slate-600/50",
-          !readOnly && !isSwapping && "hover:opacity-80 active:scale-95",
+            ? "bg-red-50 dark:bg-red-950/50 border border-red-400 dark:border-red-700"
+            : "bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-slate-800 dark:to-slate-800/70 border border-blue-300/50 dark:border-slate-600/50",
+          (!readOnly || isPreviewMode) && !isSwapping && "hover:shadow-md hover:scale-[1.02] active:scale-95",
           isThisCellDragging && "opacity-30 scale-95",
-          isDragOver && isValidDrop && "animate-wiggle border-green-500 dark:border-emerald-400 border-2 bg-green-50 dark:bg-slate-700/80",
+          isDragOver && isValidDrop && "animate-wiggle border-green-500 dark:border-emerald-400 border-2 bg-green-50 dark:bg-slate-700/80 shadow-lg",
           isDragOver && !isValidDrop && "border-red-500 dark:border-red-400 border-2 bg-red-50 dark:bg-slate-800",
           isSwapping && "animate-swap-pulse ring-2 ring-emerald-500 dark:ring-emerald-400 ring-offset-2 dark:ring-offset-slate-900"
         )}
@@ -392,57 +457,32 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
             : isSwapping
               ? 'swapPulse 0.4s ease-in-out'
               : undefined,
-          transition: 'all 0.3s ease-in-out',
+          transition: 'all 0.2s ease-in-out',
           pointerEvents: 'auto',
           touchAction: 'none'
         }}
       >
         {/* Conflict Indicator */}
         {hasConflict && (
-          <div className="absolute -top-1 -right-1">
-            <div className="bg-red-500 text-white rounded-full p-1">
+          <div className="absolute -top-1.5 -right-1.5 z-10">
+            <div className="bg-red-500 dark:bg-red-600 text-white rounded-full p-1 shadow-md">
               <AlertTriangle className="h-3 w-3" />
             </div>
           </div>
         )}
 
-        {/* Content */}
-        <div className="space-y-2">
-          {/* Subject Name */}
-          <div className="font-semibold text-sm text-gray-900 dark:text-gray-100 line-clamp-1">
-            {assignment.subject_name}
-          </div>
-
-          {/* Teacher Name */}
-          {viewMode === 'detailed' && (
-            <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-              <User className="h-3 w-3 flex-shrink-0" />
-              <span className="line-clamp-1">{assignment.teacher_name}</span>
-            </div>
-          )}
-
-          {/* Room (if exists) */}
-          {viewMode === 'detailed' && assignment.room && (
-            <div className="flex items-center gap-1 text-xs text-gray-600 dark:text-gray-400">
-              <MapPin className="h-3 w-3 flex-shrink-0" />
-              <span>{assignment.room}</span>
-            </div>
-          )}
-
-          {/* Status Badge */}
-          <div className="flex items-center gap-1 mt-2">
-            {hasConflict ? (
-              <Badge variant="destructive" className="text-[10px] py-0 h-4">
-                تعارض
-              </Badge>
-            ) : (
-              <Badge className="bg-green-500 text-white text-[10px] py-0 h-4">
-                <CheckCircle2 className="h-2 w-2 ml-1" />
-                صحيح
-              </Badge>
-            )}
-          </div>
+        {/* Subject Name */}
+        <div className="font-bold text-sm text-gray-900 dark:text-gray-50 line-clamp-2 leading-snug mb-auto">
+          {assignment.subject_name}
         </div>
+
+        {/* Teacher Name */}
+        {viewMode === 'detailed' && (
+          <div className="flex items-center gap-1.5 text-xs text-gray-700 dark:text-gray-300 mt-1.5 pt-1.5 border-t border-blue-200/50 dark:border-slate-700/50">
+            <User className="h-3 w-3 flex-shrink-0" />
+            <span className="line-clamp-1 font-medium">{assignment.teacher_name}</span>
+          </div>
+        )}
 
       </div>
     );
@@ -478,9 +518,6 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
                     >
                       <div className="text-center">
                         <div>الحصة {period.number}</div>
-                        <div className="text-xs font-normal mt-1 opacity-90">
-                          {period.start} - {period.end}
-                        </div>
                       </div>
                     </th>
                   ))}
@@ -550,20 +587,24 @@ export const WeeklyScheduleGrid: React.FC<WeeklyScheduleGridProps> = ({
         </CardContent>
       </Card>
 
-      {/* Dragging Ghost Element */}
-      {isDragging && draggedAssignment && dragCurrentPos && (
+      {/* Dragging Ghost Element - rendered in portal to avoid scroll container issues */}
+      {isDragging && draggedAssignment && dragCurrentPos && createPortal(
         <div
-          className="fixed pointer-events-none z-50"
+          dir="ltr"
+          className="fixed pointer-events-none z-[9999]"
           style={{
-            left: dragCurrentPos.x - 75,
-            top: dragCurrentPos.y - 30
+            left: `${dragCurrentPos.x}px`,
+            top: `${dragCurrentPos.y}px`,
+            transform: 'translate(-50%, -50%)',
+            willChange: 'transform'
           }}
         >
-          <div className="bg-blue-500 dark:bg-slate-700 text-white p-3 rounded-lg shadow-2xl border-2 border-blue-600 dark:border-slate-500 min-w-[150px] opacity-90 scale-110">
+          <div className="bg-blue-500 dark:bg-slate-700 text-white p-3 rounded-lg shadow-2xl border-2 border-blue-600 dark:border-slate-500 min-w-[150px] opacity-90">
             <div className="font-semibold text-sm">{draggedAssignment.subject_name}</div>
             <div className="text-xs mt-1 opacity-90">{draggedAssignment.teacher_name}</div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Details Dialog */}

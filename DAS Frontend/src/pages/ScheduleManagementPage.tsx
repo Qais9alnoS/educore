@@ -80,6 +80,8 @@ export const ScheduleManagementPage: React.FC = () => {
   const [showExporter, setShowExporter] = useState(false);
   const [showConflictResolver, setShowConflictResolver] = useState(false);
   const [activeTab, setActiveTab] = useState('create');
+  const [hasExistingSchedule, setHasExistingSchedule] = useState(false);
+  const [replaceConfirmed, setReplaceConfirmed] = useState(false);
 
   // Step configuration
   const [stepStatus, setStepStatus] = useState<Record<Step, boolean>>({
@@ -140,7 +142,7 @@ export const ScheduleManagementPage: React.FC = () => {
           setScheduleData(savedData.scheduleData);
         }
         if (savedData.currentStep) {
-          setCurrentStep(savedData.currentStep);
+          setCurrentStep(savedData.currentStep as Step);
         }
         if (savedData.stepStatus) {
           setStepStatus(savedData.stepStatus);
@@ -307,6 +309,11 @@ export const ScheduleManagementPage: React.FC = () => {
     }));
   };
 
+  const handleExistingScheduleChange = (hasExisting: boolean, confirmed: boolean) => {
+    setHasExistingSchedule(hasExisting);
+    setReplaceConfirmed(confirmed);
+  };
+
   const handleValidationComplete = () => {
     markStepCompleted('validate');
   };
@@ -414,6 +421,31 @@ export const ScheduleManagementPage: React.FC = () => {
         description: error.message || 'حدث خطأ أثناء تجهيز المعاينة',
         variant: 'destructive'
       });
+    }
+  };
+
+  const handleLocalSwap = (updatedAssignments: any[]) => {
+    // Update the schedule assignments with the swapped data
+    setScheduleAssignments(updatedAssignments);
+    
+    // Also update the preview data to reflect the swap
+    if (previewData) {
+      const updatedPreviewData = previewData.map(entry => {
+        const matchingAssignment = updatedAssignments.find(
+          a => a.day_of_week === entry.day_of_week && a.period_number === entry.period_number
+        );
+        if (matchingAssignment) {
+          return {
+            ...entry,
+            subject_id: matchingAssignment.subject_id,
+            subject_name: matchingAssignment.subject_name,
+            teacher_id: matchingAssignment.teacher_id,
+            teacher_name: matchingAssignment.teacher_name,
+          };
+        }
+        return entry;
+      });
+      setPreviewData(updatedPreviewData);
     }
   };
 
@@ -609,7 +641,10 @@ export const ScheduleManagementPage: React.FC = () => {
             <CardContent ref={filterSectionRef}>
               {/* Filter Step */}
               {currentStep === 'filter' && (
-                <ScheduleFilters onComplete={handleFilterComplete} />
+                <ScheduleFilters 
+                  onComplete={handleFilterComplete}
+                  onExistingScheduleChange={handleExistingScheduleChange}
+                />
               )}
 
               {/* Validation Step */}
@@ -648,7 +683,9 @@ export const ScheduleManagementPage: React.FC = () => {
                   data={scheduleData}
                   assignments={scheduleAssignments}
                   onSwapComplete={refreshAssignmentsFromServer}
-                  readOnly={isPreviewMode}
+                  onLocalSwap={handleLocalSwap}
+                  readOnly={false}
+                  isPreviewMode={isPreviewMode}
                 />
               )}
 
@@ -719,7 +756,16 @@ export const ScheduleManagementPage: React.FC = () => {
                 </Button>
                 <Button
                   onClick={goToNextStep}
-                  disabled={!stepStatus[currentStep] || getCurrentStepIndex() === steps.length - 1}
+                  disabled={
+                    !stepStatus[currentStep] || 
+                    getCurrentStepIndex() === steps.length - 1 ||
+                    (currentStep === 'filter' && hasExistingSchedule && !replaceConfirmed)
+                  }
+                  className={
+                    currentStep === 'filter' && hasExistingSchedule && !replaceConfirmed
+                      ? 'opacity-50 cursor-not-allowed'
+                      : ''
+                  }
                 >
                   التالي
                   <ArrowLeft className="h-4 w-4 mr-2" />
@@ -731,27 +777,11 @@ export const ScheduleManagementPage: React.FC = () => {
 
         {/* View Schedules Tab */}
         <TabsContent value="view">
-          {scheduleData ? (
-            <SavedSchedulesViewer
-              academicYearId={scheduleData.academicYearId}
-              sessionType={scheduleData.sessionType as 'morning' | 'evening'}
-              preselectedScheduleId={(location.state as any)?.scheduleData?.id}
-            />
-          ) : (
-            <Card>
-              <CardContent className="py-12">
-                <div className="text-center space-y-4">
-                  <BookOpen className="h-16 w-16 mx-auto text-gray-300" />
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">اختر سنة دراسية وفترة</h3>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      قم بإنشاء جدول جديد أولاً لاختيار السنة الدراسية والفترة
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <SavedSchedulesViewer
+            academicYearId={scheduleData?.academicYearId}
+            sessionType={scheduleData?.sessionType as 'morning' | 'evening' | undefined}
+            preselectedScheduleId={(location.state as any)?.scheduleData?.id}
+          />
         </TabsContent>
 
       </Tabs>

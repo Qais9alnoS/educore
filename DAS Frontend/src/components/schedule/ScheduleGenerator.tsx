@@ -215,9 +215,20 @@ export const ScheduleGenerator: React.FC<ScheduleGeneratorProps> = ({
           });
         }
 
+        // Check if there are warnings (soft constraint violations)
+        const hasWarnings = response.data.warnings && response.data.warnings.length > 0;
+        const hasConsecutiveViolation = hasWarnings && response.data.warnings.some(
+          (w: string) => w.includes("تجاوزات") || w.includes("متتالية")
+        );
+        
         toast({
-          title: "تم إنشاء الجدول بنجاح",
-          description: "تم إنشاء معاينة للجدول. تابع للخطوة التالية لمراجعته ونشره.",
+          title: hasConsecutiveViolation 
+            ? "تم إنشاء الجدول مع بعض التجاوزات" 
+            : "تم إنشاء الجدول بنجاح",
+          description: hasConsecutiveViolation
+            ? "تم إنشاء الجدول مع بعض التجاوزات في قيد عدم التتالي. تابع للخطوة التالية لمراجعته."
+            : "تم إنشاء معاينة للجدول. تابع للخطوة التالية لمراجعته ونشره.",
+          variant: hasConsecutiveViolation ? "default" : "default",
         });
       } else {
         throw new Error(response.message || "فشل في إنشاء الجدول");

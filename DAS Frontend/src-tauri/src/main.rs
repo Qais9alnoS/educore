@@ -57,6 +57,61 @@ async fn open_settings(_window: tauri::Window) -> Result<String, String> {
     Ok("Settings opened".to_string())
 }
 
+// Command to open directory in file explorer
+#[command]
+async fn open_directory(path: String) -> Result<(), String> {
+    // Get the directory where the exe is located
+    let exe_path = std::env::current_exe()
+        .map_err(|e| format!("Failed to get exe path: {}", e))?;
+    let exe_dir = exe_path.parent()
+        .ok_or_else(|| "Cannot find exe directory".to_string())?;
+    
+    // Determine the target directory
+    let target_dir = if path.is_empty() {
+        // Open the app directory
+        exe_dir.to_path_buf()
+    } else {
+        // Open a subdirectory (e.g., "director_notes")
+        exe_dir.join(&path)
+    };
+    
+    #[cfg(debug_assertions)]
+    println!("Opening directory: {:?}", target_dir);
+    
+    // Create the directory if it doesn't exist
+    if !target_dir.exists() {
+        std::fs::create_dir_all(&target_dir)
+            .map_err(|e| format!("Failed to create directory: {}", e))?;
+    }
+    
+    // Open the directory in Windows Explorer
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        Command::new("explorer")
+            .arg(target_dir.to_str().ok_or_else(|| "Invalid path".to_string())?)
+            .creation_flags(CREATE_NO_WINDOW)
+            .spawn()
+            .map_err(|e| format!("Failed to open directory: {}", e))?;
+    }
+    
+    #[cfg(not(target_os = "windows"))]
+    {
+        // For non-Windows systems (macOS, Linux)
+        #[cfg(target_os = "macos")]
+        let opener = "open";
+        #[cfg(target_os = "linux")]
+        let opener = "xdg-open";
+        
+        Command::new(opener)
+            .arg(target_dir.to_str().ok_or_else(|| "Invalid path".to_string())?)
+            .spawn()
+            .map_err(|e| format!("Failed to open directory: {}", e))?;
+    }
+    
+    Ok(())
+}
+
 // Backend process state
 struct BackendProcess(Mutex<Option<Child>>);
 
@@ -190,7 +245,7 @@ fn main() {
         .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_window_state::Builder::default().build())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![handle_search, toggle_theme, open_settings])
+        .invoke_handler(tauri::generate_handler![handle_search, toggle_theme, open_settings, open_directory])
         .setup(|app| {
             // Start the backend server
             match start_backend() {

@@ -457,6 +457,21 @@ const AppContent = () => {
     return () => cancelAnimationFrame(timer);
   }, [showSplash]);
 
+  // Disable common browser shortcuts (F3 search, F5 reload, Ctrl/Cmd+R reload)
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      const isReload = event.key === 'F5' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'r');
+      const isSearch = event.key === 'F3';
+      if (isReload || isSearch) {
+        event.preventDefault();
+        event.stopPropagation();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown, { capture: true });
+    return () => window.removeEventListener('keydown', handleKeyDown, { capture: true } as any);
+  }, []);
+
   // Disable right-click context menu globally for native app feel
   useEffect(() => {
     const handleContextMenu = (e: MouseEvent) => {

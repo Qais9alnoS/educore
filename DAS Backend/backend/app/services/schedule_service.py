@@ -583,6 +583,24 @@ class ScheduleGenerationService:
         subject_placed_total = {subject.id: 0 for subject in subjects}  # Track total placed per subject
         subject_required = {subject.id: getattr(subject, 'weekly_hours', 1) or 1 for subject in subjects}
         
+        # ========== CRITICAL FIX: TEACHER DAILY LOAD TRACKING ==========
+        # Track how many periods each teacher has been assigned per day
+        # This prevents single-teacher days and ensures even distribution
+        teacher_daily_load = {}  # teacher_id -> [count_day0, count_day1, ...]
+        for teacher_id in set(subject_teacher_map.values()):
+            if teacher_id:
+                teacher_daily_load[teacher_id] = [0] * num_days
+        
+        # Calculate ideal max periods per teacher per day
+        # Based on: total_teachers, periods_per_day, and each teacher's weekly requirements
+        num_teachers = len(set(t_id for t_id in subject_teacher_map.values() if t_id))
+        # Ideal: each teacher should have roughly equal periods per day
+        # Max allowed: 2-3 periods per teacher per day to ensure variety
+        # This is a SOFT cap that becomes HARD when other teachers are available
+        IDEAL_MAX_PERIODS_PER_TEACHER_PER_DAY = max(2, periods_per_day // max(num_teachers, 1))
+        HARD_MAX_PERIODS_PER_TEACHER_PER_DAY = min(3, periods_per_day - 1)  # Never more than 3, leave room for others
+        print(f"  - Teacher daily load limits: ideal={IDEAL_MAX_PERIODS_PER_TEACHER_PER_DAY}, hard={HARD_MAX_PERIODS_PER_TEACHER_PER_DAY}")
+        
         # DYNAMIC subject classification based on weekly_hours (not hardcoded names)
         # This works with ANY subject names in ANY language
         # Core subjects = high weekly_hours (≥4) = important, need early periods
@@ -705,10 +723,10 @@ class ScheduleGenerationService:
         for teacher_id in all_teacher_ids:
             if not teacher_id:
                 continue
-            num_days = len(teacher_available_days.get(teacher_id, set()))
+            teacher_num_days = len(teacher_available_days.get(teacher_id, set()))
             required = teacher_required_slots.get(teacher_id, 1)
             # How many periods per day does this teacher need on average?
-            periods_per_day_needed = required / max(num_days, 1)
+            periods_per_day_needed = required / max(teacher_num_days, 1)
             # If they need >4 periods per day, they're very constrained
             teacher_day_scarcity[teacher_id] = periods_per_day_needed
         
@@ -816,14 +834,22 @@ class ScheduleGenerationService:
                     required_slots[(subj_id, day - 1, period - 1)] = True
             elif c_type == 'subject_per_day' and subj_id:
                 subject_every_day.add(subj_id)
-            # Note: before_after rules would need a secondary_subject_id field
+            elif c_type == 'before_after' and subj_id:
+                # before_after constraint: subject_id should NOT be directly before/after reference_subject_id
+                ref_subj_id = getattr(constraint, 'reference_subject_id', None)
+                placement = getattr(constraint, 'placement', None)
+                if ref_subj_id and placement in ['before', 'after']:
+                    before_after_rules.append((subj_id, ref_subj_id, placement))
+                    print(f"  - Loaded عدم الترتيب rule: subject {subj_id} must NOT be {placement} subject {ref_subj_id}")
         
         # ========== CONSTRAINT STATISTICS (to prove constraints are working) ==========
         constraint_stats = {
             'forbidden_blocked': 0,
             'no_consecutive_blocked': 0,
             'required_preferred': 0,
-            'subject_every_day_applied': 0
+            'subject_every_day_applied': 0,
+            'before_after_blocked': 0,
+            'before_after_skipped': 0  # When constraint is impossible to satisfy
         }
         
         if no_consecutive_subjects:
@@ -832,6 +858,8 @@ class ScheduleGenerationService:
             print(f"  - Forbidden slots: {len(forbidden_slots)}")
         if subject_every_day:
             print(f"  - مادة كل يوم constraint active for {len(subject_every_day)} subjects")
+        if before_after_rules:
+            print(f"  - عدم الترتيب (قبل/بعد) constraint active for {len(before_after_rules)} rules")
         
         # Place subjects using TEACHER-AWARE algorithm
         for subject in subject_slots:
@@ -877,8 +905,86 @@ class ScheduleGenerationService:
                             constraint_stats['no_consecutive_blocked'] += 1
                             continue  # User said no consecutive for this subject
                     
+                    # Check NOT_BEFORE_AFTER constraint (SOFT - adds penalty, skips if impossible)
+                    # عدم الترتيب (قبل/بعد) = subject A must NOT be directly before/after subject B
+                    # This means: if placement='before', subject A cannot be in the period immediately before subject B
+                    # If placement='after', subject A cannot be in the period immediately after subject B
+                    # 
+                    # IMPORTANT: We need to check BOTH directions:
+                    # 1. When placing subject A: check if ref subject B is in adjacent slot
+                    # 2. When placing subject B (ref): check if subject A is in adjacent slot (reverse check)
+                    before_after_violation = False
+                    for (rule_subj_id, ref_subj_id, placement) in before_after_rules:
+                        # Case 1: We are placing the constrained subject (rule_subj_id)
+                        if subject_id == rule_subj_id:
+                            if placement == 'before':
+                                # Subject A must NOT be directly BEFORE subject B
+                                # Check if reference subject B is in the next period
+                                next_slot = schedule_grid[day][period + 1] if period < periods_per_day - 1 else None
+                                if next_slot and next_slot[0].id == ref_subj_id:
+                                    before_after_violation = True
+                                    constraint_stats['before_after_blocked'] += 1
+                                    break
+                            elif placement == 'after':
+                                # Subject A must NOT be directly AFTER subject B
+                                # Check if reference subject B is in the previous period
+                                prev_slot = schedule_grid[day][period - 1] if period > 0 else None
+                                if prev_slot and prev_slot[0].id == ref_subj_id:
+                                    before_after_violation = True
+                                    constraint_stats['before_after_blocked'] += 1
+                                    break
+                        
+                        # Case 2: We are placing the reference subject (ref_subj_id)
+                        # Need to check if constrained subject is in the position that would violate
+                        if subject_id == ref_subj_id:
+                            if placement == 'before':
+                                # Rule says: subject A must NOT be directly BEFORE subject B (us)
+                                # So check if subject A is in the previous period (would make A before B)
+                                prev_slot = schedule_grid[day][period - 1] if period > 0 else None
+                                if prev_slot and prev_slot[0].id == rule_subj_id:
+                                    before_after_violation = True
+                                    constraint_stats['before_after_blocked'] += 1
+                                    break
+                            elif placement == 'after':
+                                # Rule says: subject A must NOT be directly AFTER subject B (us)
+                                # So check if subject A is in the next period (would make A after B)
+                                next_slot = schedule_grid[day][period + 1] if period < periods_per_day - 1 else None
+                                if next_slot and next_slot[0].id == rule_subj_id:
+                                    before_after_violation = True
+                                    constraint_stats['before_after_blocked'] += 1
+                                    break
+                    
+                    # Skip this slot if it violates the not_before_after constraint
+                    if before_after_violation:
+                        continue
+                    
                     # Calculate preference score (LOWER = BETTER):
                     score = 0
+                    
+                    # ========== CRITICAL FIX: TEACHER DAILY LOAD LIMIT ==========
+                    # Check if this teacher already has too many periods on this day
+                    # This is a HARD constraint when other teachers are available for this slot
+                    current_teacher_load_today = teacher_daily_load.get(teacher_id, [0] * num_days)[day]
+                    
+                    # Count how many OTHER teachers are available at this exact slot
+                    other_teachers_available_here = sum(
+                        1 for other_id in teacher_daily_load.keys()
+                        if other_id != teacher_id and (other_id, day, period) in teacher_availability
+                    )
+                    
+                    # If teacher already at HARD limit and others are available, SKIP this slot
+                    if current_teacher_load_today >= HARD_MAX_PERIODS_PER_TEACHER_PER_DAY and other_teachers_available_here > 0:
+                        continue  # Hard block - this teacher has enough on this day
+                    
+                    # If teacher at IDEAL limit, add heavy penalty (but allow if no alternatives)
+                    if current_teacher_load_today >= IDEAL_MAX_PERIODS_PER_TEACHER_PER_DAY:
+                        if other_teachers_available_here > 0:
+                            score += 500  # Very heavy penalty - prefer other teachers
+                        else:
+                            score += 100  # Moderate penalty - but allow if necessary
+                    elif current_teacher_load_today > 0:
+                        # Already has periods today - add incremental penalty
+                        score += current_teacher_load_today * 50  # 50 per existing period
                     
                     # Check REQUIRED constraint - give bonus for required slots
                     if (subject_id, day, period) in required_slots:
@@ -1080,6 +1186,10 @@ class ScheduleGenerationService:
                 subject_placed_total[subject_id] = subject_placed_total.get(subject_id, 0) + 1  # Track total placed
                 subject_period_usage[subject_id].add(best_period)  # Track which periods this subject uses
                 
+                # CRITICAL FIX: Update teacher daily load tracking
+                if teacher_id in teacher_daily_load:
+                    teacher_daily_load[teacher_id][best_day] += 1
+                
                 # CRITICAL FIX: Remove teacher from availability at this slot
                 # This prevents the same teacher from being assigned twice at the same time
                 if (teacher_id, best_day, best_period) in teacher_availability:
@@ -1121,22 +1231,75 @@ class ScheduleGenerationService:
                 teacher_name = teacher.full_name if teacher else "Unknown"
                 
                 # Strategy 1: Try to find ANY slot where this teacher is still available
+                # Prefer slots where teacher has lower daily load
+                # CRITICAL: Also respect no_consecutive constraint!
                 placed = False
+                candidate_slots = []
+                subject_id = subject.id
                 for day in range(num_days):
-                    if placed:
-                        break
                     for period in range(periods_per_day):
                         if schedule_grid[day][period] is None:
                             # CRITICAL: Only place if teacher is ACTUALLY free at this slot
                             if (teacher_id, day, period) in teacher_availability:
-                                schedule_grid[day][period] = (subject, teacher_id)
-                                subject_placed_total[subject.id] = subject_placed_total.get(subject.id, 0) + 1
-                                subject_counts_per_day[subject.id][day] += 1
-                                # Remove from availability
-                                del teacher_availability[(teacher_id, day, period)]
-                                print(f"  ✅ Placed {subject.subject_name} at day {day+1} period {period+1} (teacher available)")
-                                placed = True
-                                break
+                                # CRITICAL FIX: Check no_consecutive constraint before adding to candidates
+                                if subject_id in no_consecutive_subjects:
+                                    prev_slot = schedule_grid[day][period-1] if period > 0 else None
+                                    next_slot = schedule_grid[day][period+1] if period < periods_per_day - 1 else None
+                                    prev_subj_id = prev_slot[0].id if prev_slot else None
+                                    next_subj_id = next_slot[0].id if next_slot else None
+                                    
+                                    if prev_subj_id == subject_id or next_subj_id == subject_id:
+                                        # Skip this slot - would create consecutive periods
+                                        constraint_stats['no_consecutive_blocked'] += 1
+                                        continue
+                                
+                                # CRITICAL FIX: Check before_after constraint before adding to candidates
+                                before_after_ok = True
+                                for (rule_subj_id, ref_subj_id, ba_placement) in before_after_rules:
+                                    if subject_id == rule_subj_id:
+                                        if ba_placement == 'before':
+                                            next_slot = schedule_grid[day][period + 1] if period < periods_per_day - 1 else None
+                                            if next_slot and next_slot[0].id == ref_subj_id:
+                                                before_after_ok = False
+                                                break
+                                        elif ba_placement == 'after':
+                                            prev_slot = schedule_grid[day][period - 1] if period > 0 else None
+                                            if prev_slot and prev_slot[0].id == ref_subj_id:
+                                                before_after_ok = False
+                                                break
+                                    if subject_id == ref_subj_id:
+                                        if ba_placement == 'before':
+                                            prev_slot = schedule_grid[day][period - 1] if period > 0 else None
+                                            if prev_slot and prev_slot[0].id == rule_subj_id:
+                                                before_after_ok = False
+                                                break
+                                        elif ba_placement == 'after':
+                                            next_slot = schedule_grid[day][period + 1] if period < periods_per_day - 1 else None
+                                            if next_slot and next_slot[0].id == rule_subj_id:
+                                                before_after_ok = False
+                                                break
+                                if not before_after_ok:
+                                    constraint_stats['before_after_blocked'] += 1
+                                    continue
+                                
+                                load_today = teacher_daily_load.get(teacher_id, [0] * num_days)[day]
+                                candidate_slots.append((day, period, load_today))
+                
+                # Sort by daily load (prefer days with fewer periods for this teacher)
+                candidate_slots.sort(key=lambda x: x[2])
+                
+                if candidate_slots:
+                    day, period, _ = candidate_slots[0]
+                    schedule_grid[day][period] = (subject, teacher_id)
+                    subject_placed_total[subject.id] = subject_placed_total.get(subject.id, 0) + 1
+                    subject_counts_per_day[subject.id][day] += 1
+                    # Update teacher daily load
+                    if teacher_id in teacher_daily_load:
+                        teacher_daily_load[teacher_id][day] += 1
+                    # Remove from availability
+                    del teacher_availability[(teacher_id, day, period)]
+                    print(f"  ✅ Placed {subject.subject_name} at day {day+1} period {period+1} (teacher available)")
+                    placed = True
                 
                 if not placed:
                     # Strategy 2: Check if we can swap with another subject whose teacher has more flexibility
@@ -1157,7 +1320,48 @@ class ScheduleGenerationService:
                             # Only swap if the existing teacher is MORE flexible than ours
                             # AND our teacher is available at this slot
                             # AND the existing teacher can be placed elsewhere
+                            # AND placing our subject here won't violate no_consecutive constraint
                             if existing_ratio > my_ratio * 1.5 and (teacher_id, day, period) in teacher_availability:
+                                # CRITICAL FIX: Check no_consecutive constraint before swapping
+                                if subject_id in no_consecutive_subjects:
+                                    # Check what would be adjacent AFTER removing existing_entry
+                                    prev_slot = schedule_grid[day][period-1] if period > 0 else None
+                                    next_slot = schedule_grid[day][period+1] if period < periods_per_day - 1 else None
+                                    prev_subj_id = prev_slot[0].id if prev_slot else None
+                                    next_subj_id = next_slot[0].id if next_slot else None
+                                    
+                                    if prev_subj_id == subject_id or next_subj_id == subject_id:
+                                        # Skip this slot - would create consecutive periods
+                                        continue
+                                
+                                # CRITICAL FIX: Check before_after constraint before swapping
+                                before_after_ok = True
+                                for (rule_subj_id, ref_subj_id, ba_placement) in before_after_rules:
+                                    if subject_id == rule_subj_id:
+                                        if ba_placement == 'before':
+                                            next_slot = schedule_grid[day][period + 1] if period < periods_per_day - 1 else None
+                                            if next_slot and next_slot[0].id == ref_subj_id:
+                                                before_after_ok = False
+                                                break
+                                        elif ba_placement == 'after':
+                                            prev_slot = schedule_grid[day][period - 1] if period > 0 else None
+                                            if prev_slot and prev_slot[0].id == ref_subj_id:
+                                                before_after_ok = False
+                                                break
+                                    if subject_id == ref_subj_id:
+                                        if ba_placement == 'before':
+                                            prev_slot = schedule_grid[day][period - 1] if period > 0 else None
+                                            if prev_slot and prev_slot[0].id == rule_subj_id:
+                                                before_after_ok = False
+                                                break
+                                        elif ba_placement == 'after':
+                                            next_slot = schedule_grid[day][period + 1] if period < periods_per_day - 1 else None
+                                            if next_slot and next_slot[0].id == rule_subj_id:
+                                                before_after_ok = False
+                                                break
+                                if not before_after_ok:
+                                    continue
+                                
                                 # Check if existing teacher has another available slot
                                 for alt_day in range(num_days):
                                     if swapped:
@@ -1165,12 +1369,32 @@ class ScheduleGenerationService:
                                     for alt_period in range(periods_per_day):
                                         if schedule_grid[alt_day][alt_period] is None:
                                             if (existing_teacher_id, alt_day, alt_period) in teacher_availability:
+                                                # CRITICAL FIX: Check if moving existing subject would violate its no_consecutive constraint
+                                                existing_subject_id = existing_subject.id
+                                                if existing_subject_id in no_consecutive_subjects:
+                                                    alt_prev_slot = schedule_grid[alt_day][alt_period-1] if alt_period > 0 else None
+                                                    alt_next_slot = schedule_grid[alt_day][alt_period+1] if alt_period < periods_per_day - 1 else None
+                                                    alt_prev_subj_id = alt_prev_slot[0].id if alt_prev_slot else None
+                                                    alt_next_subj_id = alt_next_slot[0].id if alt_next_slot else None
+                                                    
+                                                    if alt_prev_subj_id == existing_subject_id or alt_next_subj_id == existing_subject_id:
+                                                        # Skip - moving existing subject here would violate its constraint
+                                                        continue
+                                                
                                                 # Perform the swap
                                                 # Move existing subject to alternative slot
                                                 schedule_grid[alt_day][alt_period] = existing_entry
                                                 # Place our subject in the freed slot
                                                 schedule_grid[day][period] = (subject, teacher_id)
                                                 subject_placed_total[subject.id] = subject_placed_total.get(subject.id, 0) + 1
+                                                
+                                                # Update teacher daily load for both teachers
+                                                if teacher_id in teacher_daily_load:
+                                                    teacher_daily_load[teacher_id][day] += 1
+                                                if existing_teacher_id in teacher_daily_load:
+                                                    # Existing teacher moves from day to alt_day
+                                                    teacher_daily_load[existing_teacher_id][day] -= 1
+                                                    teacher_daily_load[existing_teacher_id][alt_day] += 1
                                                 
                                                 # Update availability
                                                 del teacher_availability[(teacher_id, day, period)]
@@ -1183,7 +1407,80 @@ class ScheduleGenerationService:
                                                 break
                 
                 if not placed:
-                    # CRITICAL: Do NOT force-place. Report the error instead.
+                    # Strategy 3: LAST RESORT - Allow consecutive placement with warning
+                    # This is a soft constraint violation - better than failing entirely
+                    # But still try to respect before_after constraints
+                    fallback_slots = []
+                    fallback_slots_with_ba_violation = []  # Slots that violate before_after
+                    for day in range(num_days):
+                        for period in range(periods_per_day):
+                            if schedule_grid[day][period] is None:
+                                if (teacher_id, day, period) in teacher_availability:
+                                    load_today = teacher_daily_load.get(teacher_id, [0] * num_days)[day]
+                                    
+                                    # Check before_after constraint
+                                    ba_violation = False
+                                    for (rule_subj_id, ref_subj_id, ba_placement) in before_after_rules:
+                                        if subject_id == rule_subj_id:
+                                            if ba_placement == 'before':
+                                                next_slot = schedule_grid[day][period + 1] if period < periods_per_day - 1 else None
+                                                if next_slot and next_slot[0].id == ref_subj_id:
+                                                    ba_violation = True
+                                                    break
+                                            elif ba_placement == 'after':
+                                                prev_slot = schedule_grid[day][period - 1] if period > 0 else None
+                                                if prev_slot and prev_slot[0].id == ref_subj_id:
+                                                    ba_violation = True
+                                                    break
+                                        if subject_id == ref_subj_id:
+                                            if ba_placement == 'before':
+                                                prev_slot = schedule_grid[day][period - 1] if period > 0 else None
+                                                if prev_slot and prev_slot[0].id == rule_subj_id:
+                                                    ba_violation = True
+                                                    break
+                                            elif ba_placement == 'after':
+                                                next_slot = schedule_grid[day][period + 1] if period < periods_per_day - 1 else None
+                                                if next_slot and next_slot[0].id == rule_subj_id:
+                                                    ba_violation = True
+                                                    break
+                                    
+                                    if ba_violation:
+                                        fallback_slots_with_ba_violation.append((day, period, load_today))
+                                    else:
+                                        fallback_slots.append((day, period, load_today))
+                    
+                    # Prefer slots without before_after violation
+                    fallback_slots.sort(key=lambda x: x[2])
+                    fallback_slots_with_ba_violation.sort(key=lambda x: x[2])
+                    
+                    chosen_slot = None
+                    ba_violated = False
+                    if fallback_slots:
+                        chosen_slot = fallback_slots[0]
+                    elif fallback_slots_with_ba_violation:
+                        chosen_slot = fallback_slots_with_ba_violation[0]
+                        ba_violated = True
+                    
+                    if chosen_slot:
+                        day, period, _ = chosen_slot
+                        schedule_grid[day][period] = (subject, teacher_id)
+                        subject_placed_total[subject.id] = subject_placed_total.get(subject.id, 0) + 1
+                        subject_counts_per_day[subject.id][day] += 1
+                        if teacher_id in teacher_daily_load:
+                            teacher_daily_load[teacher_id][day] += 1
+                        del teacher_availability[(teacher_id, day, period)]
+                        
+                        # Track the constraint violation
+                        constraint_stats['no_consecutive_violations'] = constraint_stats.get('no_consecutive_violations', 0) + 1
+                        if ba_violated:
+                            constraint_stats['before_after_violations'] = constraint_stats.get('before_after_violations', 0) + 1
+                            print(f"  ⚠️ Placed {subject.subject_name} at day {day+1} period {period+1} (CONSTRAINTS VIOLATED - soft constraint)")
+                        else:
+                            print(f"  ⚠️ Placed {subject.subject_name} at day {day+1} period {period+1} (CONSECUTIVE ALLOWED - soft constraint)")
+                        placed = True
+                
+                if not placed:
+                    # Truly impossible - no slots available at all
                     print(f"  ❌ CANNOT place {subject.subject_name} - teacher {teacher_name} has NO available slots!")
                     print(f"     Teacher's free slots have been exhausted. This is a scheduling impossibility.")
                     # Add to placement errors for reporting
@@ -1205,10 +1502,28 @@ class ScheduleGenerationService:
                 print(f"  - Forbidden slots: blocked {constraint_stats['forbidden_blocked']} placements")
             if constraint_stats['required_preferred'] > 0:
                 print(f"  - Required slots: preferred {constraint_stats['required_preferred']} placements")
+            if constraint_stats.get('before_after_blocked', 0) > 0:
+                print(f"  - عدم الترتيب (قبل/بعد): blocked {constraint_stats['before_after_blocked']} placements that would violate order constraint")
+            if constraint_stats.get('no_consecutive_violations', 0) > 0:
+                print(f"  - ⚠️ تجاوزات عدم التتالي: {constraint_stats['no_consecutive_violations']} consecutive placements ALLOWED (soft constraint)")
             print(f"  ✅ Constraints were ACTIVELY enforced - not luck!")
         else:
-            if no_consecutive_subjects or forbidden_slots or subject_every_day:
+            if no_consecutive_subjects or forbidden_slots or subject_every_day or before_after_rules:
                 print(f"\n🔒 Constraints active but no blocking needed (schedule naturally avoided violations)")
+        
+        # ========== PRINT TEACHER DAILY LOAD DISTRIBUTION ==========
+        # This helps verify even distribution across days
+        print(f"\n👥 Teacher Daily Load Distribution:")
+        day_names_report = ["الأحد", "الاثنين", "الثلاثاء", "الأربعاء", "الخميس"]
+        for teacher_id, daily_loads in teacher_daily_load.items():
+            teacher = teacher_map.get(teacher_id)
+            teacher_name = teacher.full_name if teacher else f"Teacher {teacher_id}"
+            total_load = sum(daily_loads)
+            max_load = max(daily_loads) if daily_loads else 0
+            min_load = min(daily_loads) if daily_loads else 0
+            load_str = " | ".join(f"{day_names_report[d]}:{daily_loads[d]}" for d in range(min(len(daily_loads), len(day_names_report))))
+            balance_status = "✅ BALANCED" if max_load - min_load <= 1 else ("⚠️ UNEVEN" if max_load <= 3 else "❌ OVERLOADED")
+            print(f"  - {teacher_name}: {load_str} (total: {total_load}, max/day: {max_load}) {balance_status}")
         
         return schedule_grid, teacher_map
     
@@ -1585,10 +1900,21 @@ class ScheduleGenerationService:
                     else:
                         self.warnings.append(violation.description)
                 
-                # If critical violations exist and can't be overridden, raise error
-                critical_violations = [v for v in all_violations if v.severity == "critical" and not v.can_override]
-                if critical_violations:
-                    error_message = " | ".join([v.description for v in critical_violations])
+                # Check for no_consecutive violations - these are now SOFT constraints
+                # We allow the schedule to be created with a warning instead of failing
+                no_consecutive_violations = [v for v in all_violations 
+                    if v.severity == "critical" and "متتالية" in v.description]
+                other_critical_violations = [v for v in all_violations 
+                    if v.severity == "critical" and not v.can_override and "متتالية" not in v.description]
+                
+                if no_consecutive_violations:
+                    # Add soft warning instead of failing
+                    self.warnings.append("تم إنشاء الجدول مع بعض التجاوزات في قيد عدم التتالي")
+                    print(f"  ⚠️ عدم التتالي violations treated as SOFT constraint - schedule will be created with warning")
+                
+                # Only fail for OTHER critical violations (not no_consecutive)
+                if other_critical_violations:
+                    error_message = " | ".join([v.description for v in other_critical_violations])
                     raise ConstraintViolationError(detail=error_message)
             else:
                 print("✅ No constraint violations found")

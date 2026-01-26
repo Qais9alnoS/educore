@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useTheme } from 'next-themes';
 import { useNavigate } from 'react-router-dom';
-import { Sun, Moon, Monitor, Settings } from 'lucide-react';
+import { Sun, Moon, Monitor, Settings, Download, RefreshCw } from 'lucide-react';
 import { UniversalSearchBar } from '@/components/search/UniversalSearchBar';
 import { ZoomDisplay } from '@/components/ui/zoom-display';
 import { useZoom } from '@/contexts/ZoomContext';
+import { useUpdateChecker } from '@/components/UpdateChecker';
+import { Progress } from '@/components/ui/progress';
 
 interface CustomTitleBarProps {
   /** 'splash' = only nav buttons, 'login' = nav + theme toggle, 'full' = everything */
@@ -20,9 +22,12 @@ const CustomTitleBar: React.FC<CustomTitleBarProps> = ({ mode = 'full' }) => {
   const [isMaximized, setIsMaximized] = useState(false);
   const [academicYearName, setAcademicYearName] = useState<string>('2025-2026');
   const [mounted, setMounted] = useState(false);
+  const [showUpdatePopup, setShowUpdatePopup] = useState(false);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
   const { theme, setTheme } = useTheme();
   const { zoomIn, zoomOut } = useZoom();
   const navigate = useNavigate();
+  const updateChecker = useUpdateChecker();
 
   useEffect(() => {
     setMounted(true);
@@ -246,10 +251,86 @@ const CustomTitleBar: React.FC<CustomTitleBarProps> = ({ mode = 'full' }) => {
       {/* Spacer for layout */}
       <div className="flex-1" data-tauri-drag-region />
 
-      {/* Left side (RTL) - Theme switcher, Settings, and Zoom display (login & full modes) */}
+      {/* Left side (RTL) - Theme switcher, Download, Settings, and Zoom display (login & full modes) */}
       {mode !== 'splash' && (
         <div className="flex items-center px-4 h-full gap-3">
           <ThemeSwitcherButton />
+          {mode === 'full' && (
+            <div className="group relative flex items-center">
+              <button
+                onClick={async () => {
+                  if (updateChecker.downloading) {
+                    setShowUpdatePopup(!showUpdatePopup);
+                    return;
+                  }
+                  setCheckingUpdates(true);
+                  try {
+                    const update = await updateChecker.checkForUpdates(true);
+                    setCheckingUpdates(false);
+                    if (update) {
+                      setShowUpdatePopup(true);
+                    }
+                  } catch (e) {
+                    setCheckingUpdates(false);
+                  }
+                }}
+                className="h-9 w-10 flex items-center justify-center rounded-xl bg-[hsl(var(--muted))]/60 border border-[hsl(var(--border))]/40 transition-all duration-200 hover:bg-[hsl(var(--muted))]/80"
+                aria-label="التحديثات"
+              >
+                {checkingUpdates ? (
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                ) : updateChecker.downloading ? (
+                  <Download className="h-4 w-4 text-blue-500 animate-pulse" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+              </button>
+              {/* Update Popup */}
+              {showUpdatePopup && (updateChecker.updateInfo || updateChecker.downloading) && (
+                <div className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-72 bg-popover border border-border rounded-lg shadow-lg z-50 p-4" dir="rtl">
+                  <div className="flex items-center justify-between mb-3">
+                    <h4 className="font-semibold text-sm">
+                      {updateChecker.downloading ? 'جاري التحميل...' : 'تحديث جديد متوفر'}
+                    </h4>
+                    <button
+                      onClick={() => setShowUpdatePopup(false)}
+                      className="text-muted-foreground hover:text-foreground text-lg leading-none"
+                    >
+                      ×
+                    </button>
+                  </div>
+                  {updateChecker.updateInfo?.version && (
+                    <p className="text-xs text-muted-foreground mb-3">
+                      الإصدار: <span className="font-medium text-foreground">{updateChecker.updateInfo.version}</span>
+                    </p>
+                  )}
+                  {updateChecker.downloading && (
+                    <div className="space-y-2 mb-3">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="text-muted-foreground">التقدم</span>
+                        <span className="font-medium">{updateChecker.downloadProgress}%</span>
+                      </div>
+                      <Progress value={updateChecker.downloadProgress} className="h-2" />
+                    </div>
+                  )}
+                  {!updateChecker.downloading && (
+                    <button
+                      onClick={() => {
+                        updateChecker.downloadAndInstall();
+                      }}
+                      className="w-full py-2 px-3 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:bg-primary/90 transition-colors flex items-center justify-center gap-2"
+                    >
+                      <Download className="h-4 w-4" />
+                      تحميل وتثبيت
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 px-2 py-1 bg-popover border border-border rounded-md shadow-md opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none whitespace-nowrap z-50">
+                <span className="text-xs text-popover-foreground">التحديثات</span>
+              </div>
+            </div>
+          )}
           {mode === 'full' && (
             <div className="group relative flex items-center">
               <button

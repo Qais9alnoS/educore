@@ -22,5 +22,6 @@ psutil==7.0.0             # System monitoring (services/monitoring_service.py)
 pillow==11.1.0            # Image processing (services/file_service.py, export_service.py)
 python-magic==0.4.27      # File type detection (services/file_service.py)
 python-multipart==0.0.6   # Form data parsing
+openpyxl==3.1.5           # Excel file generation (services/export_service.py)
 
 # Environment variables are now hardcoded in config.py

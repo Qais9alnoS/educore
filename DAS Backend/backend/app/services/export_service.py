@@ -13,9 +13,27 @@ try:
     from openpyxl import Workbook
     from openpyxl.styles import Font, Fill, PatternFill, Border, Side, Alignment
     from openpyxl.utils import get_column_letter
+    from openpyxl.styles.numbers import FORMAT_TEXT
     OPENPYXL_AVAILABLE = True
 except ImportError:
     OPENPYXL_AVAILABLE = False
+
+# App Theme Colors (matching the frontend) - Modern & Clean
+THEME_PRIMARY_BLUE = "3B82F6"      # Primary blue - hsl(211, 86%, 56%)
+THEME_PRIMARY_DARK = "1E40AF"      # Deep blue for title
+THEME_ACCENT_YELLOW = "FBBF24"     # Modern amber/gold - softer
+THEME_SECONDARY_ORANGE = "F97316"  # Secondary orange - hsl(14, 90%, 62%)
+THEME_LIGHT_BLUE = "F0F9FF"        # Very subtle blue tint
+THEME_SOFT_BLUE = "DBEAFE"         # Soft blue for headers
+THEME_LIGHT_GRAY = "F9FAFB"        # Almost white gray
+THEME_BORDER_GRAY = "E5E7EB"       # Soft border color
+THEME_TEXT_DARK = "1F2937"         # Dark text
+THEME_TEXT_MEDIUM = "6B7280"       # Medium gray text
+THEME_TEXT_LIGHT = "9CA3AF"        # Light gray text
+
+# Modern clean font - Segoe UI is the modern Windows system font
+# It's clean, contemporary, and renders Arabic beautifully
+MODERN_FONT = "Segoe UI"
 
 # PDF export
 try:
@@ -79,71 +97,150 @@ class ExportService:
         ws = wb.active
         ws.title = "الجدول الدراسي"
         
+        # Set document properties - Author as Educore
+        wb.properties.creator = "Educore"
+        wb.properties.lastModifiedBy = "Educore"
+        wb.properties.title = "الجدول الدراسي"
+        wb.properties.subject = "جدول الحصص الدراسية"
+        wb.properties.company = "Educore"
+        
         # Set RTL
         ws.sheet_view.rightToLeft = True
         
-        # Styles
-        header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-        header_font = Font(bold=True, size=12, color="FFFFFF")
-        cell_border = Border(
-            left=Side(style='thin'),
-            right=Side(style='thin'),
-            top=Side(style='thin'),
-            bottom=Side(style='thin')
-        )
-        center_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        # ============================================
+        # MODERN STYLES - Clean & Contemporary
+        # ============================================
         
-        # Add header information
+        # Title style - Deep blue, clean modern look
+        title_fill = PatternFill(start_color=THEME_PRIMARY_DARK, end_color=THEME_PRIMARY_DARK, fill_type="solid")
+        title_font = Font(name=MODERN_FONT, bold=True, size=20, color="FFFFFF")
+        
+        # Header style - Primary Blue for day headers
+        header_fill = PatternFill(start_color=THEME_PRIMARY_BLUE, end_color=THEME_PRIMARY_BLUE, fill_type="solid")
+        header_font = Font(name=MODERN_FONT, bold=True, size=12, color="FFFFFF")
+        
+        # Period column style - Modern amber/gold
+        period_fill = PatternFill(start_color=THEME_ACCENT_YELLOW, end_color=THEME_ACCENT_YELLOW, fill_type="solid")
+        period_font = Font(name=MODERN_FONT, bold=True, size=11, color=THEME_TEXT_DARK)
+        
+        # Info section style - Soft blue background, clean text
+        info_fill = PatternFill(start_color=THEME_SOFT_BLUE, end_color=THEME_SOFT_BLUE, fill_type="solid")
+        info_font = Font(name=MODERN_FONT, bold=False, size=11, color=THEME_PRIMARY_DARK)
+        
+        # Cell styles for schedule content - clean and readable
+        subject_font = Font(name=MODERN_FONT, bold=True, size=11, color=THEME_TEXT_DARK)
+        teacher_font = Font(name=MODERN_FONT, size=10, color=THEME_TEXT_MEDIUM)
+        cell_font = Font(name=MODERN_FONT, size=11, color=THEME_TEXT_DARK)
+        empty_font = Font(name=MODERN_FONT, size=10, color=THEME_TEXT_LIGHT)
+        
+        # Alternating row colors - very subtle
+        row_fill_white = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+        row_fill_alt = PatternFill(start_color=THEME_LIGHT_GRAY, end_color=THEME_LIGHT_GRAY, fill_type="solid")
+        
+        # Border styles - subtle and modern
+        no_border = Border()  # No border for cleaner look
+        subtle_border = Border(
+            left=Side(style='thin', color=THEME_BORDER_GRAY),
+            right=Side(style='thin', color=THEME_BORDER_GRAY),
+            top=Side(style='thin', color=THEME_BORDER_GRAY),
+            bottom=Side(style='thin', color=THEME_BORDER_GRAY)
+        )
+        bottom_border = Border(
+            bottom=Side(style='thin', color=THEME_BORDER_GRAY)
+        )
+        
+        # Alignments
+        center_alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        right_alignment = Alignment(horizontal='right', vertical='center', wrap_text=True)
+        
+        # ============================================
+        # TITLE SECTION - Modern clean header
+        # ============================================
         row = 1
-        ws.merge_cells(f'A{row}:H{row}')
+        ws.row_dimensions[row].height = 45
+        ws.merge_cells(f'A{row}:F{row}')
         title_cell = ws[f'A{row}']
         title_cell.value = "الجدول الدراسي"
-        title_cell.font = Font(bold=True, size=16)
+        title_cell.font = title_font
+        title_cell.fill = title_fill
         title_cell.alignment = center_alignment
+        for col in range(1, 7):
+            ws.cell(row=row, column=col).fill = title_fill
         row += 1
         
-        # Add schedule info
-        ws.merge_cells(f'A{row}:B{row}')
-        ws[f'A{row}'] = f"الصف: {schedule_data['class_name']}"
-        ws.merge_cells(f'C{row}:D{row}')
-        ws[f'C{row}'] = f"الشعبة: {schedule_data['section'] or '1'}"
-        ws.merge_cells(f'E{row}:F{row}')
-        ws[f'E{row}'] = f"الفترة: {schedule_data['session_type']}"
-        ws.merge_cells(f'G{row}:H{row}')
-        ws[f'G{row}'] = f"السنة الدراسية: {schedule_data['academic_year']}"
-        row += 2
+        # ============================================
+        # INFO SECTION - Clean info bar
+        # ============================================
+        ws.row_dimensions[row].height = 32
         
-        # Create schedule table
+        # Apply info styling to all cells first
+        for col in range(1, 7):
+            cell = ws.cell(row=row, column=col)
+            cell.fill = info_fill
+            cell.font = info_font
+            cell.alignment = center_alignment
+        
+        # Class info (merged A:B)
+        ws.merge_cells(f'A{row}:B{row}')
+        ws[f'A{row}'].value = f"الصف: {schedule_data['class_name']}"
+        
+        # Section info
+        ws[f'C{row}'].value = f"الشعبة: {schedule_data['section'] or '1'}"
+        
+        # Session type
+        ws[f'D{row}'].value = f"الفترة: {schedule_data['session_type']}"
+        
+        # Academic year (merged E:F)
+        ws.merge_cells(f'E{row}:F{row}')
+        ws[f'E{row}'].value = f"السنة الدراسية: {schedule_data['academic_year']}"
+        
+        # Small spacing row
+        row += 1
+        ws.row_dimensions[row].height = 6
+        row += 1
+        
+        # ============================================
+        # SCHEDULE TABLE - Modern clean design
+        # ============================================
         periods = schedule_data['periods']
         days = [d for d in self.day_names if d]  # Exclude empty string
         
-        # Header row - Days
-        ws[f'A{row}'] = "الحصة"
-        ws[f'A{row}'].fill = header_fill
-        ws[f'A{row}'].font = header_font
-        ws[f'A{row}'].border = cell_border
-        ws[f'A{row}'].alignment = center_alignment
+        # Header row - Clean blue headers
+        ws.row_dimensions[row].height = 36
         
+        # Period header cell
+        period_header = ws[f'A{row}']
+        period_header.value = "الحصة"
+        period_header.fill = header_fill
+        period_header.font = header_font
+        period_header.alignment = center_alignment
+        
+        # Day header cells
         col_idx = 2
         for day in days[:5]:  # Sunday to Thursday
             cell = ws.cell(row=row, column=col_idx)
             cell.value = day
             cell.fill = header_fill
             cell.font = header_font
-            cell.border = cell_border
             cell.alignment = center_alignment
             col_idx += 1
         
-        # Data rows
+        # Data rows with subtle alternating colors
+        row_index = 0
         for period_num in sorted(periods.keys()):
             row += 1
-            # Period number
+            row_index += 1
+            ws.row_dimensions[row].height = 50
+            
+            # Period number with amber accent
             period_cell = ws[f'A{row}']
             period_cell.value = f"الحصة {period_num}"
-            period_cell.fill = PatternFill(start_color="D3D3D3", end_color="D3D3D3", fill_type="solid")
-            period_cell.font = Font(bold=True)
-            period_cell.border = cell_border
+            period_cell.fill = period_fill
+            period_cell.font = period_font
             period_cell.alignment = center_alignment
+            
+            # Subtle alternating row color
+            current_row_fill = row_fill_alt if row_index % 2 == 0 else row_fill_white
             
             # Subjects for each day
             col_idx = 2
@@ -153,28 +250,40 @@ class ExportService:
                 # Find assignment for this day/period
                 assignment = schedule_data['grid'].get((day_idx, period_num))
                 if assignment:
+                    # Format: Subject name on first line, teacher on second
                     cell.value = f"{assignment['subject']}\n{assignment['teacher']}"
-                    # Color code by subject type (optional)
-                    cell.fill = PatternFill(start_color="E7E6E6", end_color="E7E6E6", fill_type="solid")
+                    cell.fill = current_row_fill
+                    cell.font = cell_font
                 else:
-                    cell.value = "فارغ"
-                    cell.fill = PatternFill(start_color="FFFFFF", end_color="FFFFFF", fill_type="solid")
+                    cell.value = "—"
+                    cell.fill = current_row_fill
+                    cell.font = empty_font
                 
-                cell.border = cell_border
+                cell.border = subtle_border
                 cell.alignment = center_alignment
                 col_idx += 1
         
-        # Add generation timestamp
-        row += 2
-        ws.merge_cells(f'A{row}:H{row}')
-        ws[f'A{row}'] = f"تم الإنشاء في: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
-        ws[f'A{row}'].alignment = Alignment(horizontal='center')
-        ws[f'A{row}'].font = Font(italic=True, size=9)
+        # ============================================
+        # FOOTER - Clean timestamp
+        # ============================================
+        row += 1
+        ws.row_dimensions[row].height = 25
         
-        # Adjust column widths
-        ws.column_dimensions['A'].width = 15
+        ws.merge_cells(f'A{row}:F{row}')
+        timestamp_cell = ws[f'A{row}']
+        timestamp_cell.value = f"Educore  |  {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        timestamp_cell.alignment = Alignment(horizontal='center', vertical='center')
+        timestamp_cell.font = Font(name=MODERN_FONT, size=9, color=THEME_TEXT_LIGHT)
+        
+        # ============================================
+        # COLUMN WIDTHS - Clean proportions
+        # ============================================
+        ws.column_dimensions['A'].width = 14  # Period column
         for col_idx in range(2, 7):
-            ws.column_dimensions[get_column_letter(col_idx)].width = 25
+            ws.column_dimensions[get_column_letter(col_idx)].width = 22
+        
+        # Freeze header for scrolling
+        ws.freeze_panes = 'A5'
         
         # Save to BytesIO
         output = BytesIO()
@@ -451,53 +560,85 @@ class ExportService:
         schedule = self.db.query(Schedule).filter(Schedule.id == schedule_id).first()
         if not schedule:
             raise ValueError(f"Schedule with ID {schedule_id} not found")
-        
-        # Get academic year
+
         academic_year = self.db.query(AcademicYear).filter(
             AcademicYear.id == schedule.academic_year_id
         ).first()
-        
-        # Get class info
+
         class_obj = self.db.query(Class).filter(Class.id == schedule.class_id).first()
-        
+
         grade_level_ar = {
             "primary": "ابتدائي",
             "intermediate": "إعدادي",
             "secondary": "ثانوي"
         }
-        
-        class_name = f"الصف {class_obj.grade_number} {grade_level_ar.get(class_obj.grade_level, '')}" if class_obj else "Unknown"
-        
-        # Get all assignments
-        assignments = self.db.query(ScheduleAssignment).filter(
-            ScheduleAssignment.schedule_id == schedule_id
+
+        class_name = (
+            f"الصف {class_obj.grade_number} {grade_level_ar.get(class_obj.grade_level, '')}"
+            if class_obj else "Unknown"
+        )
+
+        grid: Dict[tuple[int, int], Dict[str, str]] = {}
+        periods: Dict[int, bool] = {}
+
+        # In production data, each period may be stored directly as a Schedule row.
+        related_schedules = self.db.query(Schedule).filter(
+            Schedule.class_id == schedule.class_id,
+            Schedule.section == schedule.section,
+            Schedule.academic_year_id == schedule.academic_year_id,
+            Schedule.session_type == schedule.session_type
         ).all()
-        
-        # Build grid
-        grid = {}
-        periods = {}
-        
-        for assignment in assignments:
-            # Get time slot
-            time_slot = self.db.query(TimeSlot).filter(TimeSlot.id == assignment.time_slot_id).first()
-            if not time_slot:
-                continue
-            
-            # Get subject and teacher
-            subject = self.db.query(Subject).filter(Subject.id == assignment.subject_id).first()
-            teacher = self.db.query(Teacher).filter(Teacher.id == assignment.teacher_id).first()
-            
-            day = time_slot.day_of_week
-            period = time_slot.period_number
-            
-            grid[(day, period)] = {
-                'subject': subject.subject_name if subject else "Unknown",
-                'teacher': teacher.full_name if teacher else "Unknown",
-                'room': assignment.room or ""
-            }
-            
-            periods[period] = True
-        
+
+        if related_schedules:
+            subject_ids = {row.subject_id for row in related_schedules if row.subject_id}
+            teacher_ids = {row.teacher_id for row in related_schedules if row.teacher_id}
+
+            subjects_map = {
+                subj.id: subj.subject_name
+                for subj in self.db.query(Subject).filter(Subject.id.in_(subject_ids)).all()
+            } if subject_ids else {}
+
+            teachers_map = {
+                teacher.id: teacher.full_name
+                for teacher in self.db.query(Teacher).filter(Teacher.id.in_(teacher_ids)).all()
+            } if teacher_ids else {}
+
+            for row in related_schedules:
+                if row.day_of_week is None or row.period_number is None:
+                    continue
+
+                grid[(row.day_of_week, row.period_number)] = {
+                    'subject': subjects_map.get(row.subject_id, "Unknown"),
+                    'teacher': teachers_map.get(row.teacher_id, "Unknown"),
+                    'room': row.description or ""
+                }
+
+                periods[row.period_number] = True
+        else:
+            # Fallback to legacy ScheduleAssignment rows
+            assignments = self.db.query(ScheduleAssignment).filter(
+                ScheduleAssignment.schedule_id == schedule_id
+            ).all()
+
+            for assignment in assignments:
+                time_slot = self.db.query(TimeSlot).filter(TimeSlot.id == assignment.time_slot_id).first()
+                if not time_slot:
+                    continue
+
+                subject = self.db.query(Subject).filter(Subject.id == assignment.subject_id).first()
+                teacher = self.db.query(Teacher).filter(Teacher.id == assignment.teacher_id).first()
+
+                day = time_slot.day_of_week
+                period = time_slot.period_number
+
+                grid[(day, period)] = {
+                    'subject': subject.subject_name if subject else "Unknown",
+                    'teacher': teacher.full_name if teacher else "Unknown",
+                    'room': assignment.room or ""
+                }
+
+                periods[period] = True
+
         return {
             'schedule_id': schedule_id,
             'class_name': class_name,
@@ -507,4 +648,3 @@ class ExportService:
             'grid': grid,
             'periods': periods
         }
-

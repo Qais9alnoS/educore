@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, Query as SqlAlchemyQuery
 from typing import Optional, List
 from datetime import datetime
 import logging
+import os
 
 from app.database import get_db
 from app.models.users import User

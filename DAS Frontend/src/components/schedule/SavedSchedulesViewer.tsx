@@ -24,11 +24,13 @@ import {
   FileText,
   CheckCircle2,
   AlertCircle,
-  Clock
+  Clock,
+  Download
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { schedulesApi, classesApi, subjectsApi, teachersApi } from '@/services/api';
 import { WeeklyScheduleGrid } from './WeeklyScheduleGrid';
+import { ScheduleExporter } from './ScheduleExporter';
 
 interface SavedSchedule {
   id: number;
@@ -43,8 +45,8 @@ interface SavedSchedule {
 }
 
 interface SavedSchedulesViewerProps {
-  academicYearId: number;
-  sessionType: 'morning' | 'evening';
+  academicYearId?: number;
+  sessionType?: 'morning' | 'evening';
   preselectedScheduleId?: number;
 }
 
@@ -61,6 +63,8 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
   const [loadingDetails, setLoadingDetails] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [scheduleToDelete, setScheduleToDelete] = useState<SavedSchedule | null>(null);
+  const [showExporter, setShowExporter] = useState(false);
+  const [scheduleToExport, setScheduleToExport] = useState<SavedSchedule | null>(null);
 
   // Fetch saved schedules
   useEffect(() => {
@@ -87,10 +91,15 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
   const fetchSchedules = async () => {
     setLoading(true);
     try {
-      const response = await schedulesApi.getAll({
-        academic_year_id: academicYearId,
-        session_type: sessionType
-      });
+      const filters: any = {};
+      if (academicYearId) {
+        filters.academic_year_id = academicYearId;
+      }
+      if (sessionType) {
+        filters.session_type = sessionType;
+      }
+
+      const response = await schedulesApi.getAll(filters);
 
       if (response.success && response.data) {
         // Group schedules by class and section
@@ -128,6 +137,11 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleExportSchedule = (schedule: SavedSchedule) => {
+    setScheduleToExport(schedule);
+    setShowExporter(true);
   };
 
   const handleViewSchedule = async (schedule: SavedSchedule) => {
@@ -353,8 +367,6 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
                   <TableHead className="text-right min-w-[100px]">الصف</TableHead>
                   <TableHead className="text-right min-w-[80px]">الشعبة</TableHead>
                   <TableHead className="text-right min-w-[100px]">الفترة</TableHead>
-                  <TableHead className="text-right min-w-[100px]">عدد الحصص</TableHead>
-                  <TableHead className="text-right min-w-[100px]">الحالة</TableHead>
                   <TableHead className="text-right min-w-[120px]">تاريخ الإنشاء</TableHead>
                   <TableHead className="text-right min-w-[120px]">الإجراءات</TableHead>
                 </TableRow>
@@ -375,24 +387,28 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
                         {schedule.session_type === 'morning' ? 'صباحي' : 'مسائي'}
                       </Badge>
                   </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary">
-                      {schedule.total_periods || 0} حصة
-                    </Badge>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(schedule.status)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">
                     {new Date(schedule.created_at).toLocaleDateString('ar-SA')}
                   </TableCell>
                   <TableCell onClick={(e) => e.stopPropagation()}>
-                    <Button 
-                      variant="ghost" 
-                      size="sm"
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                      onClick={() => handleDeleteSchedule(schedule)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950"
+                        onClick={() => handleExportSchedule(schedule)}
+                      >
+                        <Download className="h-4 w-4" />
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                        onClick={() => handleDeleteSchedule(schedule)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -442,6 +458,16 @@ export const SavedSchedulesViewer: React.FC<SavedSchedulesViewerProps> = ({
         variant="destructive"
         onConfirm={confirmDelete}
       />
+
+      {/* Export Dialog */}
+      {showExporter && scheduleToExport && (
+        <ScheduleExporter
+          open={showExporter}
+          onOpenChange={setShowExporter}
+          scheduleId={scheduleToExport.id}
+          scheduleName={`جدول الصف ${scheduleToExport.class_id} شعبة ${scheduleToExport.section}`}
+        />
+      )}
     </>
   );
 };

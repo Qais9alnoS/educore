@@ -85,13 +85,15 @@ pyz = PYZ(a.pure, a.zipped_data, cipher=block_cipher)
 exe = EXE(
     pyz,
     a.scripts,
-    [],  # Don't bundle binaries - use external
-    exclude_binaries=True,  # Keep binaries separate
+    a.binaries,  # Bundle all binaries into single EXE
+    a.zipfiles,
+    a.datas,
+    [],
     name='school-management-backend-x86_64-pc-windows-msvc',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,
-    upx=False,  # Disable UPX to avoid hanging
+    upx=False,  # Disable UPX to avoid issues
     console=False,
     disable_windowed_traceback=False,
     argv_emulation=False,
@@ -99,15 +101,4 @@ exe = EXE(
     codesign_identity=None,
     entitlements_file=None,
     icon=None,
-)
-
-coll = COLLECT(
-    exe,
-    a.binaries,
-    a.zipfiles,
-    a.datas,
-    strip=False,
-    upx=False,
-    upx_exclude=[],
-    name='school-management-backend-x86_64-pc-windows-msvc',
 )
