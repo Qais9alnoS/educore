@@ -3,15 +3,17 @@
 
 block_cipher = None
 
+import sys
+import os
+
+# Prevent PyInstaller from deep-analyzing app modules that crash
+os.environ['PYINSTALLER_STRICT_UNPACK_MODE'] = '0'
+
 a = Analysis(
     ['run_server.py'],
-    pathex=[],
-    binaries=[
-        # Include bcrypt C extension
-        # PyInstaller will try to find bcrypt's compiled extensions
-    ],
+    pathex=['.'],
+    binaries=[],
     datas=[
-        # Include all Python files from app directory
         ('app', 'app'),
     ],
     hiddenimports=[
@@ -72,13 +74,15 @@ a = Analysis(
         'pandas',
     ],
     module_collection_mode={
-        'app': 'py',  # Collect entire app as source to avoid deep analysis crashes
-        'app.services': 'py',
-        'app.api': 'py',
-        'app.core': 'py',
-        'app.models': 'py',
-        'app.schemas': 'py',
-        'app.utils': 'py',
+        'app': 'pyz+py',  # Include both compiled and source
+        'app.services': 'pyz+py',
+        'app.api': 'pyz+py',
+        'app.core': 'pyz+py',
+        'app.models': 'pyz+py',
+        'app.schemas': 'pyz+py',
+        'app.utils': 'pyz+py',
+        'sqlcipher3': 'pyz+py',
+        'psutil': 'pyz+py',
     },
     win_no_prefer_redirects=False,
     win_private_assemblies=False,
