@@ -85,7 +85,6 @@ a = Analysis(
         'openpyxl.worksheet',
         'openpyxl.styles',
         'openpyxl.utils',
-        'magic',
         # Utilities
         'click',
         'email_validator',
@@ -114,6 +113,7 @@ a = Analysis(
         'IPython',
         'notebook',
         'jupyter',
+        'magic',  # Causes PyInstaller crashes on Windows, code handles it being unavailable
         'app',  # Exclude app from analysis - we include it as data
     ],
     win_no_prefer_redirects=False,
