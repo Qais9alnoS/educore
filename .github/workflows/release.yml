@@ -47,7 +47,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: backend-exe
-          path: DAS Backend/backend/dist/school-management-backend-x86_64-pc-windows-msvc/school-management-backend-x86_64-pc-windows-msvc.exe
+          path: DAS Backend/backend/dist/school-management-backend-x86_64-pc-windows-msvc.exe
           retention-days: 1
 
   build-and-release:

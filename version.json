@@ -1,10 +1,10 @@
 {
-  "version": "1.0.0",
-  "backend_version": "1.0.0",
-  "frontend_version": "1.0.0",
-  "release_date": "2025-01-23",
+  "version": "1.0.5",
+  "backend_version": "1.0.5",
+  "frontend_version": "1.0.5",
+  "release_date": "2026-01-31",
   "notes": {
-    "ar": "الإصدار الأول من نظام إدارة المدرسة",
-    "en": "Initial release of School Management System"
+    "ar": "إصلاح مشكلة التحديثات وتحسين بناء الخلفية",
+    "en": "Fix update checking and improve backend build"
   }
 }

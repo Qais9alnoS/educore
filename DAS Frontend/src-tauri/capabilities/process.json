@@ -1,0 +1,10 @@
+{
+  "identifier": "process-capability",
+  "description": "Capability for process management (relaunch after update)",
+  "windows": ["main"],
+  "permissions": [
+    "process:default",
+    "process:allow-restart",
+    "process:allow-exit"
+  ]
+}

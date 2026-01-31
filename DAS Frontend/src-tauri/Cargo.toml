@@ -29,6 +29,7 @@ tauri-plugin-fs = { version = "2", default-features = false }
 tauri-plugin-window-state = { version = "2", default-features = false }
 tauri-plugin-decorum = { version = "0.1", default-features = false }
 tauri-plugin-updater = { version = "2", default-features = false }
+tauri-plugin-process = { version = "2", default-features = false }
 
 
 [features]
