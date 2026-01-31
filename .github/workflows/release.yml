@@ -23,6 +23,7 @@ env:
 jobs:
   build-backend:
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 
@@ -41,7 +42,7 @@ jobs:
       - name: Build Backend
         working-directory: DAS Backend/backend
         run: |
-          .\venv\Scripts\python -m PyInstaller das_backend.spec --clean --noconfirm
+          .\venv\Scripts\python -m PyInstaller das_backend.spec --clean --noconfirm --log-level=INFO
 
       - name: Upload Backend Artifact
         uses: actions/upload-artifact@v4

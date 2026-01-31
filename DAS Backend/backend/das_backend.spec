@@ -98,7 +98,6 @@ a = Analysis(
         'slowapi.util',
         # JWT
         'jwt',
-        'PyJWT',
     ],
     hookspath=[],
     hooksconfig={},
@@ -111,6 +110,10 @@ a = Analysis(
         'matplotlib',
         'numpy',
         'pandas',
+        'scipy',
+        'IPython',
+        'notebook',
+        'jupyter',
         'app',  # Exclude app from analysis - we include it as data
     ],
     win_no_prefer_redirects=False,
