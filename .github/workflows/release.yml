@@ -99,6 +99,43 @@ jobs:
           echo "VERSION=$version" >> $env:GITHUB_OUTPUT
           echo "Version: $version"
 
+      - name: Create Update Artifacts
+        working-directory: DAS Frontend/src-tauri/target/release/bundle
+        run: |
+          # Get the MSI file
+          $msiFile = Get-ChildItem -Path "msi/*.msi" | Select-Object -First 1
+          $msiName = $msiFile.Name
+          $msiPath = $msiFile.FullName
+          $sigFile = "$msiPath.sig"
+          $zipFile = "$msiPath.zip"
+
+          # Create zip of MSI
+          Compress-Archive -Path $msiPath -DestinationPath $zipFile -Force
+
+          # Read signature
+          $signature = Get-Content $sigFile -Raw
+
+          # Create latest.json for Tauri updater
+          $version = "${{ steps.version.outputs.VERSION }}"
+          $manifest = @{
+            version = $version
+            notes = "Release v$version"
+            pub_date = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            platforms = @{
+              "windows-x86_64" = @{
+                signature = $signature.Trim()
+                url = "https://github.com/Qais9alnoS/educore/releases/download/v$version/$msiName.zip"
+              }
+            }
+          }
+          $manifest | ConvertTo-Json -Depth 10 | Set-Content -Path "msi/latest.json" -Encoding UTF8
+
+          # Also copy signature for the zip
+          Copy-Item $sigFile "$zipFile.sig"
+
+          Write-Host "Created update artifacts:"
+          Get-ChildItem -Path "msi/"
+
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
@@ -111,6 +148,7 @@ jobs:
             DAS Frontend/src-tauri/target/release/bundle/msi/*.msi
             DAS Frontend/src-tauri/target/release/bundle/msi/*.msi.zip
             DAS Frontend/src-tauri/target/release/bundle/msi/*.msi.zip.sig
+            DAS Frontend/src-tauri/target/release/bundle/msi/latest.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
