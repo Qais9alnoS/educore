@@ -72,10 +72,14 @@ jobs:
           name: backend-exe
           path: DAS Frontend/src-tauri/binaries
 
-      - name: Rename Backend for Tauri
+      - name: Verify Backend Binary
         working-directory: DAS Frontend/src-tauri/binaries
         run: |
-          Rename-Item -Path "school-management-backend-x86_64-pc-windows-msvc.exe" -NewName "das-backend-x86_64-pc-windows-msvc.exe"
+          # Backend is already named correctly as school-management-backend-x86_64-pc-windows-msvc.exe
+          Get-ChildItem -Path "."
+          if (!(Test-Path "school-management-backend-x86_64-pc-windows-msvc.exe")) {
+            throw "Backend binary not found!"
+          }
 
       - name: Install Frontend Dependencies
         working-directory: DAS Frontend

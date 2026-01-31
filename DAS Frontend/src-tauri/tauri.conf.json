@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Educore",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "identifier": "com.dasmgmt.management",
   "build": {
     "devUrl": "http://localhost:3000",
@@ -33,7 +33,7 @@
     "active": true,
     "targets": ["msi", "nsis"],
     "icon": ["icons/icon.ico"],
-    "externalBin": ["binaries/das-backend"],
+    "externalBin": ["binaries/school-management-backend"],
     "resources": [],
     "createUpdaterArtifacts": true
   },

@@ -12,7 +12,7 @@ import { DesktopLayout } from '@/components/layout/DesktopLayout';
 import { SplashScreen } from '@/components/SplashScreen';
 import { FirstRunSetup } from '@/components/FirstRunSetup';
 import CustomTitleBar from '@/components/layout/CustomTitleBar';
-import { AcademicYearManagementPage, DashboardPage, StudentPersonalInfoPage, StudentAcademicInfoPage, SchoolInfoManagementPage, ActivitiesManagementPage, AddEditGradePage, TeacherManagementPage, ScheduleManagementPage, UserManagementPage, SettingsPage } from '@/pages';
+import { AcademicYearManagementPage, DashboardPage, StudentPersonalInfoPage, StudentAcademicInfoPage, SchoolInfoManagementPage, ActivitiesManagementPage, AddEditGradePage, TeacherManagementPage, ScheduleManagementPage, UserManagementPage, SettingsPage, UpdateTestPage } from '@/pages';
 import LoginPage from '@/pages/LoginPage';
 import NotFound from '@/pages/NotFound';
 import DirectorNotesPage from '@/pages/DirectorNotesPage';
@@ -345,6 +345,8 @@ const ProtectedApp = () => {
             </ProtectedRoute>
           }
         />
+        {/* Update Test Page - Temporary page to verify updates work */}
+        <Route path="update-test" element={<UpdateTestPage />} />
         {/* Catch-all for undefined routes */}
         <Route path="*" element={<NotFound />} />
       </Route>

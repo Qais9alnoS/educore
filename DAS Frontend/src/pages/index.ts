@@ -11,3 +11,4 @@ export { default as DirectorNotesSearchPage } from './DirectorNotesSearchPage';
 export { ScheduleManagementPage } from './ScheduleManagementPage';
 export { default as UserManagementPage } from './UserManagementPage';
 export { default as SettingsPage } from './SettingsPage';
+export { default as UpdateTestPage } from './UpdateTestPage';
