@@ -311,6 +311,13 @@ const Sidebar = ({ isCollapsed, setIsCollapsed, sidebarWidth }) => {
       href: "/settings",
       icon: Settings,
     },
+    // Update Test Page (for testing updates)
+    {
+      name: "اختبار التحديث",
+      href: "/update-test",
+      icon: RefreshCw,
+      allowedRoles: ["director"],
+    },
   ];
 
   // Filter navigation items based on user role

@@ -156,10 +156,20 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Upload Update Manifest
+      - name: Upload Update Manifest to Version Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
           files: DAS Frontend/src-tauri/target/release/bundle/msi/*.json
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Update Latest Release with Manifest
+        run: |
+          # The Tauri updater looks for latest.json at /releases/latest/download/latest.json
+          # GitHub's "latest" release is automatically the most recent non-prerelease, non-draft release
+          # The latest.json we uploaded to v$VERSION will be accessible via /releases/latest/download/
+          # as long as this release becomes the "latest" release (which it will since it's not draft/prerelease)
+          Write-Host "latest.json uploaded to release v${{ steps.version.outputs.VERSION }}"
+          Write-Host "This release will become the 'latest' release, making latest.json accessible at:"
+          Write-Host "https://github.com/Qais9alnoS/educore/releases/latest/download/latest.json"

@@ -31,12 +31,35 @@ export function useUpdateChecker(): UseUpdateCheckerReturn {
     try {
       // Only work in Tauri environment
       if (typeof window === "undefined" || !("__TAURI__" in window)) {
+        if (manual) {
+          throw new Error("NOT_TAURI");
+        }
         return null;
       }
 
       // Dynamic import to avoid errors in non-Tauri environments
       const { check } = await import("@tauri-apps/plugin-updater");
-      const update = await check();
+      
+      let update;
+      try {
+        update = await check();
+      } catch (checkError: any) {
+        const errStr = String(checkError?.message || checkError).toLowerCase();
+        console.error("Update check error details:", errStr);
+        
+        // Handle specific error cases
+        // "up to date" or "already on latest" means no update needed - not an error
+        if (errStr.includes("up to date") || errStr.includes("already") || errStr.includes("latest")) {
+          return null; // No update available - this is success, not error
+        } else if (errStr.includes("404") || errStr.includes("not found")) {
+          throw new Error("UPDATE_NO_RELEASE");
+        } else if (errStr.includes("network") || errStr.includes("fetch") || errStr.includes("failed to fetch") || errStr.includes("connection")) {
+          throw new Error("UPDATE_NETWORK_ERROR");
+        } else if (errStr.includes("could not fetch") || errStr.includes("request")) {
+          throw new Error("UPDATE_NETWORK_ERROR");
+        }
+        throw checkError;
+      }
 
       if (update) {
         setUpdateInfo(update);
@@ -46,8 +69,17 @@ export function useUpdateChecker(): UseUpdateCheckerReturn {
         // Return null but don't show dialog - let caller handle it
         return null;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Failed to check for updates:", error);
+      // Provide more context about the error
+      const errorMessage = error?.message || String(error);
+      if (errorMessage.includes("NOT_TAURI")) {
+        throw new Error("UPDATE_NOT_AVAILABLE_DEV");
+      } else if (errorMessage.includes("UPDATE_NO_RELEASE") || errorMessage.includes("UPDATE_NETWORK_ERROR")) {
+        throw error; // Re-throw our custom errors
+      } else if (errorMessage.toLowerCase().includes("network") || errorMessage.toLowerCase().includes("fetch") || errorMessage.includes("404")) {
+        throw new Error("UPDATE_NETWORK_ERROR");
+      }
       throw error; // Throw error so caller can handle it
     }
   };

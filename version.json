@@ -1,7 +1,7 @@
 {
-  "version": "1.0.5",
-  "backend_version": "1.0.5",
-  "frontend_version": "1.0.5",
+  "version": "1.0.6",
+  "backend_version": "1.0.6",
+  "frontend_version": "1.0.6",
   "release_date": "2026-01-31",
   "notes": {
     "ar": "إصلاح مشكلة التحديثات وتحسين بناء الخلفية",

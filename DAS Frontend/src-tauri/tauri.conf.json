@@ -1,8 +1,8 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Educore",
-  "version": "1.0.5",
-  "identifier": "com.dasmgmt.management",
+  "version": "1.0.6",
+  "identifier": "com.rizonway.educore",
   "build": {
     "devUrl": "http://localhost:3000",
     "beforeDevCommand": "npm run dev",

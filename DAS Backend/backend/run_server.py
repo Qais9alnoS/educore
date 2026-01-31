@@ -5,9 +5,15 @@ import os
 import io
 
 # Set UTF-8 encoding for stdout and stderr (critical for PyInstaller .exe)
-if sys.stdout.encoding != 'utf-8':
+# Handle case where stdout/stderr may be None in windowed mode
+if sys.stdout is None:
+    sys.stdout = io.StringIO()
+elif hasattr(sys.stdout, 'buffer') and sys.stdout.encoding != 'utf-8':
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-if sys.stderr.encoding != 'utf-8':
+
+if sys.stderr is None:
+    sys.stderr = io.StringIO()
+elif hasattr(sys.stderr, 'buffer') and sys.stderr.encoding != 'utf-8':
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 
 # Set environment variable for any child processes

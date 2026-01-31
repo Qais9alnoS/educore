@@ -1,8 +1,8 @@
 [package]
 name = "educore"
 version = "1.0.0"
-description = "Professional School Management System - DAS Management"
-authors = ["DAS Management Team"]
+description = "Professional School Management System"
+authors = ["Rizonway"]
 license = "MIT"
 repository = ""
 default-run = "educore"

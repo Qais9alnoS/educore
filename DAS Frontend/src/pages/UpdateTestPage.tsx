@@ -17,7 +17,7 @@ const UpdateTestPage: React.FC = () => {
             هذه الصفحة تثبت أن التحديث يعمل بشكل صحيح.
           </p>
           <p className="mt-4 text-sm text-muted-foreground">
-            إصدار التحديث: 1.0.4
+            إصدار التحديث: 1.0.6
           </p>
         </CardContent>
       </Card>

@@ -104,12 +104,35 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
         });
       }
       // If update exists, dialog will show automatically
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to check for updates:', error);
+      console.error('Error message:', error?.message);
+      console.error('Error string:', String(error));
       setCheckingUpdates(false);
+      const errorMessage = error?.message || String(error);
+      const errorLower = errorMessage.toLowerCase();
+      let description = "فشل التحقق من التحديثات. يرجى المحاولة لاحقاً";
+      
+      if (errorMessage.includes("UPDATE_NOT_AVAILABLE_DEV")) {
+        description = "التحديثات غير متوفرة في وضع التطوير";
+      } else if (errorMessage.includes("UPDATE_NO_RELEASE")) {
+        description = "لا توجد إصدارات متوفرة حالياً. أنت تستخدم أحدث إصدار";
+      } else if (errorLower.includes("up to date") || errorLower.includes("already on latest") || errorLower.includes("no update")) {
+        // Not an error - user is on latest version
+        toast({
+          title: "لا توجد تحديثات",
+          description: "أنت تستخدم أحدث إصدار من البرنامج",
+        });
+        return;
+      } else if (errorMessage.includes("UPDATE_NETWORK_ERROR") || errorLower.includes("network") || errorLower.includes("fetch") || errorLower.includes("failed to send request")) {
+        description = "تعذر الاتصال بخادم التحديثات. تحقق من اتصال الإنترنت";
+      } else if (errorLower.includes("404") || errorLower.includes("not found")) {
+        description = "لا توجد تحديثات متوفرة حالياً";
+      }
+      
       toast({
         title: "خطأ",
-        description: "فشل التحقق من التحديثات. يرجى المحاولة لاحقاً",
+        description,
         variant: "destructive"
       });
     }
